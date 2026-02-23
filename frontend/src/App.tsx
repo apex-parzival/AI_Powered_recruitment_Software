@@ -12,12 +12,14 @@ import Candidates from './pages/Candidates';
 import Evaluations from './pages/Evaluations';
 import Interviews from './pages/Interviews';
 import Profile from './pages/Profile';
+import TechnicalAssessment from './pages/TechnicalAssessment';
 
 function App() {
   return (
     <Router>
       <Routes>
         <Route path="/login" element={<Login />} />
+        <Route path="/assessment/:token" element={<TechnicalAssessment />} />
         <Route path="/" element={<Layout />}>
           <Route index element={<Navigate to="/dashboard" />} />
           <Route path="dashboard" element={<Dashboard />} />

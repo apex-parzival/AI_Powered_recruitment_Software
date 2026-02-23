@@ -20,21 +20,7 @@ function PriorityBadge({ p }: { p: string }) {
     );
 }
 
-function SkillTag({ label, pct }: { label: string; pct?: number }) {
-    return (
-        <div style={{ marginBottom: 10 }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, marginBottom: 4 }}>
-                <span style={{ fontWeight: 500, color: 'var(--text)' }}>{label}</span>
-                {pct !== undefined && <span style={{ fontWeight: 700, color: 'var(--blue)' }}>{pct}%</span>}
-            </div>
-            {pct !== undefined && (
-                <div className="progress-bar-track">
-                    <div className="progress-bar-fill" style={{ width: `${pct}%`, background: pct >= 80 ? 'var(--success)' : 'var(--blue)' }} />
-                </div>
-            )}
-        </div>
-    );
-}
+
 
 // ─── Main Component ───────────────────────────────────────────────────────────
 export default function InterviewRoom() {
@@ -51,7 +37,9 @@ export default function InterviewRoom() {
 
     const transcriptEndRef = useRef<HTMLDivElement>(null);
     const recognitionRef = useRef<any>(null);
+    const mediaRecorderRef = useRef<any>(null);
     const speakerToggle = useRef<'Interviewer' | 'Candidate'>('Interviewer');
+    const [useDeepgram, setUseDeepgram] = useState(false);
 
     // Load session data
     useEffect(() => {
@@ -90,10 +78,47 @@ export default function InterviewRoom() {
         return () => { document.head.removeChild(script); };
     }, [session, jitsiReady]);
 
-    // Web Speech API
+    const startDeepgramRecording = async () => {
+        try {
+            const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+            const mr = new MediaRecorder(stream);
+            mr.ondataavailable = async (e) => {
+                if (e.data.size > 0) {
+                    const fd = new FormData();
+                    fd.append('audio_file', new File([e.data], 'chunk.webm', { type: 'audio/webm' }));
+                    try {
+                        const r = await interviewApi.uploadAudioFallback(parseInt(sessionId!), fd);
+                        if (r.data.transcript) {
+                            const ts = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+                            const entry: TranscriptEntry = { speaker: speakerToggle.current, text: r.data.transcript, timestamp: ts };
+                            setTranscript(prev => [...prev, entry]);
+                            const resp = await interviewApi.addTranscriptChunk(parseInt(sessionId!), entry.speaker, entry.text, ts);
+                            if (resp.data.suggestions?.length) setSuggestions(resp.data.suggestions);
+                        }
+                    } catch (err) { console.error("Deepgram err", err); }
+                }
+            };
+            mr.start(5000); // 5 sec chunks
+            mediaRecorderRef.current = mr;
+            setIsListening(true);
+        } catch (e) {
+            console.error("Mic access denied", e);
+            alert("Microphone access denied.");
+        }
+    };
+
     const startListening = useCallback(() => {
+        if (useDeepgram) {
+            startDeepgramRecording();
+            return;
+        }
+
         const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
-        if (!SpeechRecognition) { alert('Your browser does not support Web Speech API. Please use Chrome.'); return; }
+        if (!SpeechRecognition) {
+            alert('Your browser does not support Web Speech API. Please enable Deepgram Fallback.');
+            setUseDeepgram(true);
+            return;
+        }
 
         const recognition = new SpeechRecognition();
         recognition.continuous = true;
@@ -121,12 +146,17 @@ export default function InterviewRoom() {
         recognitionRef.current = recognition;
         recognition.start();
         setIsListening(true);
-    }, [sessionId]);
+    }, [sessionId, useDeepgram]);
 
     const stopListening = useCallback(() => {
-        recognitionRef.current?.stop();
+        if (useDeepgram && mediaRecorderRef.current) {
+            mediaRecorderRef.current.stop();
+            mediaRecorderRef.current.stream.getTracks().forEach((track: any) => track.stop());
+        } else if (recognitionRef.current) {
+            recognitionRef.current.stop();
+        }
         setIsListening(false);
-    }, []);
+    }, [useDeepgram]);
 
     const endInterview = async () => {
         setEnding(true);
@@ -175,6 +205,12 @@ export default function InterviewRoom() {
                                     </button>
                                 ))}
                             </div>
+                            {/* Deepgram Fallback Toggle */}
+                            <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, fontWeight: 600, color: 'var(--text-muted)', cursor: 'pointer', background: 'var(--surface-2)', padding: '0 10px', borderRadius: 8, border: '1px solid var(--border)' }}>
+                                <input type="checkbox" checked={useDeepgram} onChange={e => { if (!isListening) setUseDeepgram(e.target.checked); }} disabled={isListening} />
+                                Deepgram
+                            </label>
+
                             <button className={isListening ? 'btn-secondary' : 'btn-success'} onClick={isListening ? stopListening : startListening}>
                                 {isListening ? (
                                     <><span style={{ width: 8, height: 8, borderRadius: '50%', background: '#EF4444', display: 'inline-block', animation: 'pulse 1s infinite' }} /> Stop STT</>

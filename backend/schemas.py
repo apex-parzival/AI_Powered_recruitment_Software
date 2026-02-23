@@ -65,3 +65,16 @@ class FinalEvaluationCreate(BaseModel):
     final_score: float
     recommendation: str
     summary: str
+
+class TechnicalAssessmentResponse(BaseModel):
+    id: int
+    application_id: int
+    questions: Optional[List[dict]] = None
+    answers: Optional[List[dict]] = None
+    scores: Optional[List[dict]] = None
+    overall_score: Optional[float] = None
+    status: str
+    token: str
+    class Config:
+        from_attributes = True
+

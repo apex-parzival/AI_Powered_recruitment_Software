@@ -11,9 +11,15 @@ load_dotenv()
 
 import models, schemas
 from database import engine, get_db
-from ai_service import generate_job_criteria
+import ai_service
+from ai_service import generate_job_criteria, generate_technical_assessment, evaluate_technical_assessment
 import resume_parser
 import interview_service
+from docx import Document
+try:
+    from deepgram import DeepgramClient, PrerecordedOptions
+except ImportError:
+    DeepgramClient = None
 
 models.Base.metadata.create_all(bind=engine)
 
@@ -115,6 +121,35 @@ def get_jobs(db: Session = Depends(get_db)):
             } if crit else None,
         })
     return result
+
+@app.post("/jobs/parse-jd")
+async def parse_job_description(file: UploadFile = File(...)):
+    """Upload a PDF or Docx file to extract job description text."""
+    content = ""
+    filename = file.filename.lower() if file.filename else ""
+    path = os.path.join(UPLOAD_DIR, f"temp_jd_{uuid.uuid4().hex}_{file.filename}")
+    
+    with open(path, "wb") as buf:
+        while chunk := await file.read(65536):
+            buf.write(chunk)
+
+    try:
+        if filename.endswith(".docx"):
+            doc = Document(path)
+            content = "\\n".join([para.text for para in doc.paragraphs])
+        elif filename.endswith(".pdf") or "pdf" in file.content_type:
+            content = resume_parser.extract_text_from_pdf(path)
+        else:
+            with open(path, "r", encoding="utf-8", errors="ignore") as txt_f:
+                content = txt_f.read()
+    except Exception as e:
+        if os.path.exists(path): os.remove(path)
+        raise HTTPException(status_code=400, detail=f"Failed to parse file: {str(e)}")
+
+    if os.path.exists(path): os.remove(path)
+    if not content.strip(): raise HTTPException(400, "Could not extract text from file")
+    
+    return {"message": "Job description extracted", "description": content.strip()}
 
 @app.post("/jobs/{job_id}/criteria/generate", response_model=schemas.CriteriaVersionResponse)
 def generate_criteria(job_id: int, db: Session = Depends(get_db)):
@@ -370,6 +405,35 @@ def get_suggestions(session_id: int, db: Session = Depends(get_db)):
     if not session: raise HTTPException(404)
     return {"suggestions": session.ai_suggestions or []}
 
+@app.post("/interviews/{session_id}/audio-upload")
+async def process_audio_upload(session_id: int, audio_file: UploadFile = File(...), db: Session = Depends(get_db)):
+    """Deepgram STT fallback for processing audio blobs if browser STT is unavailable."""
+    if not DeepgramClient:
+        raise HTTPException(500, "Deepgram SDK not installed")
+        
+    api_key = os.getenv("DEEPGRAM_API_KEY", "")
+    if not api_key:
+        # Mock transcript if no key (for demo completeness)
+        import asyncio
+        await asyncio.sleep(1)
+        return {"transcript": "[Mock Deepgram Transcript] Yes, I have 5 years of Python experience.", "speaker": "Candidate"}
+        
+    try:
+        audio_content = await audio_file.read()
+        deepgram = DeepgramClient(api_key)
+        payload = {"buffer": audio_content}
+        options = PrerecordedOptions(
+            model="nova-2",
+            smart_format=True,
+            diarize=True
+        )
+        response = deepgram.listen.rest.v("1").transcribe_file(payload, options)
+        # simplistic extraction (usually you iterate utterances)
+        transcript = response.results.channels[0].alternatives[0].transcript
+        return {"transcript": transcript, "speaker": "Candidate"}
+    except Exception as e:
+        raise HTTPException(500, f"Deepgram processing failed: {e}")
+
 @app.post("/interviews/{session_id}/end")
 def end_interview(session_id: int, background_tasks: BackgroundTasks, db: Session = Depends(get_db)):
     """End the session and trigger post-interview Gemini evaluation in background."""
@@ -483,6 +547,74 @@ def get_interview_report(session_id: int, db: Session = Depends(get_db)):
 # ─────────────────────────────────────────────────────────────────────────────
 # FINAL ASSESSMENT  (ACCEPT / HOLD / REJECT)
 # ─────────────────────────────────────────────────────────────────────────────
+class GenerateTechnicalRequest(BaseModel):
+    application_id: int
+
+@app.post("/assessments/technical/generate")
+def generate_assessment(req: GenerateTechnicalRequest, db: Session = Depends(get_db)):
+    appl = db.query(models.Application).filter(models.Application.id == req.application_id).first()
+    if not appl: raise HTTPException(404, "Application not found")
+    job = db.query(models.Job).filter(models.Job.id == appl.job_id).first()
+    
+    criteria_ver = db.query(models.CriteriaVersion).filter(
+        models.CriteriaVersion.job_id == job.id,
+        models.CriteriaVersion.is_active == True
+    ).first()
+    criteria_list = []
+    if criteria_ver:
+        try: criteria_list = json.loads(criteria_ver.criteria_config) if isinstance(criteria_ver.criteria_config, str) else criteria_ver.criteria_config
+        except: pass
+
+    questions = generate_technical_assessment(job.title if job else "Role", criteria_list)
+    token = uuid.uuid4().hex
+    ta = models.TechnicalAssessment(
+        application_id=req.application_id,
+        questions=questions,
+        token=token
+    )
+    db.add(ta); db.commit(); db.refresh(ta)
+    return {"message": "Technical Assessment Generated", "token": token, "link": f"/assessment/{token}"}
+
+@app.get("/assessments/technical/{token}", response_model=schemas.TechnicalAssessmentResponse)
+def get_technical_assessment(token: str, db: Session = Depends(get_db)):
+    ta = db.query(models.TechnicalAssessment).filter(models.TechnicalAssessment.token == token).first()
+    if not ta: raise HTTPException(404, "Assessment link invalid or expired")
+    
+    # Do not leak expected_answers to frontend unless it's already graded
+    clean_questions = []
+    for q in (ta.questions or []):
+        d = dict(q)
+        if ta.status == "pending":
+            d.pop("expected_answer", None)
+        clean_questions.append(d)
+        
+    return {
+        "id": ta.id, "application_id": ta.application_id,
+        "questions": clean_questions, "answers": ta.answers,
+        "scores": ta.scores, "overall_score": ta.overall_score,
+        "status": ta.status, "token": ta.token
+    }
+
+class SubmitTechnicalRequest(BaseModel):
+    answers: List[dict] # {question_id: int, answer_text: str}
+
+@app.post("/assessments/technical/{token}/submit")
+def submit_technical_assessment(token: str, req: SubmitTechnicalRequest, db: Session = Depends(get_db)):
+    ta = db.query(models.TechnicalAssessment).filter(models.TechnicalAssessment.token == token).first()
+    if not ta: raise HTTPException(404, "Invalid token")
+    if ta.status != "pending": raise HTTPException(400, "Already submitted")
+    
+    ta.answers = req.answers
+    ta.status = "submitted"
+    ta.submitted_at = datetime.utcnow()
+    
+    eval_result = evaluate_technical_assessment(req.answers, ta.questions)
+    ta.scores = eval_result.get("scores", [])
+    ta.overall_score = eval_result.get("overall_score", 0.0)
+    ta.status = "scored"
+    db.commit()
+    return {"message": "Assessment Scored", "overall_score": ta.overall_score, "detailed_scores": ta.scores}
+
 class FinalAssessmentRequest(BaseModel):
     application_id: int
     interviewer_rating: float   # 0.0-1.0 (Strong Hire=1.0, Hire=0.75, Neutral=0.5, No Hire=0.25)
@@ -517,6 +649,41 @@ def create_final_assessment(req: FinalAssessmentRequest, db: Session = Depends(g
         ).first()
         interview_score = float(scorecard.overall_score or 0.6) if scorecard else 0.6
 
+    # Technical assessment score (if exists)
+    tech = db.query(models.TechnicalAssessment).filter(
+        models.TechnicalAssessment.application_id == req.application_id,
+        models.TechnicalAssessment.status == "scored"
+    ).order_by(models.TechnicalAssessment.id.desc()).first()
+    tech_score = float(tech.overall_score or 0.0) if tech else None
+
+    # Recalculate Weights if Tech exists
+    # If Tech exists: Resume(25%) + Interview(45%) + Tech(30%)
+    # If no Tech: Resume(30%) + Interview(50%) (subjective rating goes in later)
+    if tech_score is not None:
+        weighted_obj = 0.25 * resume_score + 0.45 * interview_score + 0.30 * tech_score
+    else:
+        weighted_obj = 0.375 * resume_score + 0.625 * interview_score # Normalize back to 1.0 (0.3/0.8, 0.5/0.8)
+
+    # Subjective rating is overlaid via final_assessment func
+    # So we'll pass the derived component as the base "interview_score" or handle it correctly:
+    # Actually, let's just use final_score calculation ourselves directly here
+    # 0.8 * Objective + 0.2 * Subjective
+    final_score = 0.8 * weighted_obj + 0.2 * req.interviewer_rating
+    
+    if final_score >= 0.75: verdict = "ACCEPT"
+    elif final_score >= 0.5: verdict = "HOLD"
+    else: verdict = "REJECT"
+    
+    db_result = {
+       "resume_score": resume_score,
+       "interview_score": interview_score,
+       "technical_score": tech_score,
+       "subjective_score": req.interviewer_rating,
+       "final_score": final_score,
+       "verdict": verdict,
+       "narrative": f"Candidate received {verdict}. Resume: {resume_score:.2f}, Interview: {interview_score:.2f}."
+    }
+
     result = interview_service.final_assessment(
         resume_score=resume_score,
         interview_score=interview_score,
@@ -526,6 +693,10 @@ def create_final_assessment(req: FinalAssessmentRequest, db: Session = Depends(g
         candidate_name=cand.name if cand else "",
         job_title=job.title if job else ""
     )
+    result["final_score"] = final_score
+    result["verdict"] = verdict
+    if tech_score is not None:
+        result["technical_score"] = tech_score
 
     # Persist
     appl.final_assessment = result
@@ -533,6 +704,7 @@ def create_final_assessment(req: FinalAssessmentRequest, db: Session = Depends(g
     if existing_eval:
         existing_eval.resume_score = resume_score
         existing_eval.interview_score = interview_score
+        existing_eval.technical_score = tech_score
         existing_eval.subjective_score = req.interviewer_rating
         existing_eval.final_score = result["final_score"]
         existing_eval.verdict = result["verdict"]
@@ -544,6 +716,7 @@ def create_final_assessment(req: FinalAssessmentRequest, db: Session = Depends(g
             application_id=req.application_id,
             resume_score=resume_score,
             interview_score=interview_score,
+            technical_score=tech_score,
             subjective_score=req.interviewer_rating,
             final_score=result["final_score"],
             verdict=result["verdict"],

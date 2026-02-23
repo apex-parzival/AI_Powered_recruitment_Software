@@ -1,6 +1,6 @@
 import { useEffect, useState, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { resumesApi, interviewApi } from '../api';
+import { resumesApi, interviewApi, assessmentApi } from '../api';
 
 function StatusBadge({ status }: { status: string }) {
     const cfg: Record<string, { label: string, color: string, bg: string }> = {
@@ -44,6 +44,7 @@ export default function JobPipeline() {
     const [uploadProgress, setUploadProgress] = useState({ done: 0, total: 0 });
     const [dragOver, setDragOver] = useState(false);
     const [search, setSearch] = useState('');
+    const [sending, setSending] = useState<number | null>(null);
 
     const fetchApps = useCallback(async () => {
         if (!jobId) return;
@@ -86,6 +87,21 @@ export default function JobPipeline() {
     const startInterview = async (appId: number) => {
         try { const r = await interviewApi.startSession(appId); navigate(`/interview/${r.data.id}`); }
         catch (e) { console.error(e); }
+    };
+
+    const sendAssessment = async (appId: number) => {
+        try {
+            setSending(appId);
+            const r = await assessmentApi.generateTechnical(appId);
+            // In a real app, this would email the candidate. For MVP, we show the link.
+            const link = window.location.origin + r.data.link;
+            prompt("Assessment Generated! Share this link with the candidate:", link);
+        } catch (e: any) {
+            console.error(e);
+            alert("Failed to generate assessment. Ensure AI service is running.");
+        } finally {
+            setSending(null);
+        }
     };
 
     const filtered = apps.filter(a =>
@@ -229,10 +245,15 @@ export default function JobPipeline() {
                                         </td>
                                         <td style={{ padding: '14px 20px' }}><StatusBadge status={app.status} /></td>
                                         <td style={{ padding: '14px 20px' }}>
-                                            <button className="btn-primary" style={{ fontSize: 12, padding: '7px 14px' }} onClick={() => startInterview(app.id)} disabled={app.status !== 'completed'}>
-                                                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><polygon points="5 3 19 12 5 21 5 3" /></svg>
-                                                Interview
-                                            </button>
+                                            <div style={{ display: 'flex', gap: 8 }}>
+                                                <button className="btn-primary" style={{ fontSize: 12, padding: '7px 14px' }} onClick={() => startInterview(app.id)} disabled={app.status !== 'completed'}>
+                                                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><polygon points="5 3 19 12 5 21 5 3" /></svg>
+                                                    Interview
+                                                </button>
+                                                <button className="btn-secondary" style={{ fontSize: 12, padding: '7px 14px' }} onClick={() => sendAssessment(app.id)} disabled={app.status !== 'completed' || sending === app.id}>
+                                                    {sending === app.id ? '...' : 'Send Test'}
+                                                </button>
+                                            </div>
                                         </td>
                                     </tr>
                                 ))}

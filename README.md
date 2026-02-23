@@ -20,15 +20,18 @@
 - **Multi-dimensional scoring** against job criteria (0–100 per criterion) with evidence quotes
 - **Bulk upload** — 1000+ PDFs via 64KB streaming chunks + 16-worker thread pool, batched DB commits of 50
 - **Recommendation flag** — auto-tags top-percentile candidates for interview
+- **JD Parsing** — Upload Job Description as PDF/Docx to auto-extract text during Job Creation
 
-### 🎥 Live Interview System
+### 🎥 Live Interview System & Technical Assessments
 - **Jitsi Meet** integration — free, embeddable video conferencing with no API key required
 - **Web Speech API** — real-time browser-side speech-to-text; toggle Interviewer/Candidate speaker labels
+- **Deepgram STT Fallback** — Optional high-accuracy audio chunk processing if Web Speech is unavailable
 - **AI Co-pilot** — Gemini generates 3–4 smart follow-up questions every 3 utterances with HIGH/MEDIUM priority
 - **Post-interview evaluation** — Gemini cross-references spoken answers vs resume claims, scores consistency
+- **Technical Assessments** — AI-generated timed coding/scenario quizzes per candidate, evaluated automatically
 
 ### 🏆 Final Assessment Engine
-- **Composite formula**: Resume 30% + Interview 50% + Recruiter Rating 20%
+- **Composite formula**: Resume 25% + Interview 45% + Tech Assessment 30% + Recruiter Rating Overlay
 - **5-level recruiter rating**: Strong Hire → Strong No Hire
 - **ACCEPT / HOLD / REJECT** verdict with gradient card, narrative, strengths, and concerns
 - Full verdict history stored with per-criterion breakdowns
@@ -160,6 +163,8 @@ cd frontend && npm run dev
 | `POST` | `/interviews/{id}/transcript` | Save STT chunk + get AI questions |
 | `POST` | `/interviews/{id}/end` | End session + trigger Gemini eval |
 | `GET` | `/interviews/{id}/report` | Full post-interview report |
+| `POST` | `/assessments/technical/generate` | Generate candidate technical assessment |
+| `POST` | `/assessments/technical/{token}/submit` | Submit and score technical assessment |
 | `POST` | `/assessments/final` | Generate ACCEPT/HOLD/REJECT verdict |
 
 ---
@@ -179,10 +184,10 @@ cd frontend && npm run dev
 |-------|-----------|
 | Frontend | React 18, TypeScript, Vite, TailwindCSS |
 | Backend | FastAPI, SQLAlchemy, SQLite |
-| AI | Google Gemini Flash 2.0 (`gemini-2.0-flash`) |
+| AI | Google Gemini Flash 2.0 (`gemini-2.0-flash`), Ollama (Local LLM fallback) |
 | Video | Jitsi Meet (free, no API key) |
-| STT | Web Speech API (Chrome) |
-| PDF | PyMuPDF (fitz) |
+| STT | Web Speech API (Chrome), Deepgram SDK |
+| Document Parsing | PyMuPDF (fitz), python-docx |
 
 ---
 

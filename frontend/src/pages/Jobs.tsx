@@ -105,6 +105,7 @@ export default function Jobs() {
     const [extracting, setExtracting] = useState<number | null>(null);
     const [form, setForm] = useState({ title: '', department: '', description: '' });
     const [submitting, setSubmitting] = useState(false);
+    const [uploadingJd, setUploadingJd] = useState(false);
     const navigate = useNavigate();
 
     const fetchJobs = useCallback(async () => {
@@ -124,6 +125,23 @@ export default function Jobs() {
         setExtracting(id);
         try { await jobsApi.generateCriteria(id); await fetchJobs(); }
         catch (e) { console.error(e); } finally { setExtracting(null); }
+    };
+
+    const handleUploadJD = async (e: React.ChangeEvent<HTMLInputElement>) => {
+        if (!e.target.files || !e.target.files[0]) return;
+        setUploadingJd(true);
+        const fb = new FormData();
+        fb.append('file', e.target.files[0]);
+        try {
+            const res = await jobsApi.uploadJD(fb);
+            setForm(prev => ({ ...prev, description: res.data.description }));
+        } catch (err: any) {
+            console.error(err);
+            alert(err.response?.data?.detail || "Failed to extract text from file");
+        } finally {
+            setUploadingJd(false);
+            e.target.value = ''; // reset
+        }
     };
 
     const depts = ['Engineering', 'Product', 'Design', 'Marketing', 'Operations', 'HR', 'Finance', 'Sales'];
@@ -205,8 +223,15 @@ export default function Jobs() {
                                     </select>
                                 </div>
                                 <div>
-                                    <label style={{ display: 'block', fontSize: 13, fontWeight: 600, color: 'var(--text-2)', marginBottom: 6 }}>Job Description <span style={{ color: 'var(--error)' }}>*</span></label>
-                                    <textarea className="input" required rows={5} placeholder="Enter detailed job description, responsibilities, and requirements..." value={form.description} onChange={e => setForm({ ...form, description: e.target.value })} style={{ resize: 'vertical' }} />
+                                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
+                                        <label style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-2)' }}>Job Description <span style={{ color: 'var(--error)' }}>*</span></label>
+                                        <label style={{ cursor: 'pointer', fontSize: 12, color: 'var(--primary)', fontWeight: 600, display: 'flex', alignItems: 'center', gap: 4 }}>
+                                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" /><polyline points="17 8 12 3 7 8" /><line x1="12" y1="3" x2="12" y2="15" /></svg>
+                                            {uploadingJd ? 'Extracting...' : 'Upload PDF/Docx'}
+                                            <input type="file" style={{ display: 'none' }} accept=".pdf,.docx" onChange={handleUploadJD} disabled={uploadingJd} />
+                                        </label>
+                                    </div>
+                                    <textarea className="input" required rows={5} placeholder="Enter detailed job description, responsibilities, and requirements... Alternatively, use the upload button above to extract text from a file." value={form.description} onChange={e => setForm({ ...form, description: e.target.value })} style={{ resize: 'vertical' }} />
                                     <p style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 6 }}>Provide a comprehensive description to generate accurate evaluation criteria</p>
                                 </div>
                                 <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 12, paddingTop: 4 }}>

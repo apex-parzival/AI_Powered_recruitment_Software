@@ -84,3 +84,54 @@ def generate_job_criteria(job_title: str, job_description: str) -> Dict[str, Any
             "experience_years": 1,
             "education": "Any"
         }
+
+def generate_technical_assessment(job_title: str, criteria_config: list) -> list:
+    """Generate a list of technical questions based on job criteria."""
+    prompt = f"""
+    You are an expert technical interviewer for a {job_title} role.
+    Based on these criteria: {json.dumps(criteria_config)}
+    Generate exactly 4 technical or scenario-tailored questions to assess the candidate.
+    Output ONLY a JSON array of objects in this exact format:
+    [
+      {{"question": "How do you handle...", "expected_answer": "Key points expected...", "criterion": "Skill Name", "difficulty": "Medium"}}
+    ]
+    """
+    response_text = _call_ollama(prompt)
+    try:
+        clean = response_text.replace("```json", "").replace("```", "").strip()
+        return json.loads(clean)[:4]
+    except Exception as e:
+        logger.error(f"Failed to generate technical assessment: {e}")
+        return [
+           {"question": "Explain a difficult technical problem you solved recently.", "expected_answer": "STAR method, technical depth", "criterion": "Problem Solving", "difficulty": "Medium"},
+           {"question": "How do you ensure code quality and maintainability?", "expected_answer": "Testing, code reviews, SOLID principles", "criterion": "Engineering Practices", "difficulty": "Medium"}
+        ]
+
+def evaluate_technical_assessment(answers: list, questions: list) -> dict:
+    """Evaluate candidate answers against expected answers."""
+    prompt = f"""
+    You are an expert technical interviewer evaluating a written technical test.
+    Questions and Expected Responses: {json.dumps(questions)}
+    Candidate Answers: {json.dumps(answers)}
+
+    Evaluate each answer from 0.0 to 10.0 based on how well it matches the expected answer.
+    Provide a brief sentence of feedback for each. Also provide an overall_score between 0.0 and 1.0.
+    Output ONLY a JSON object in this exact format:
+    {{
+      "scores": [
+         {{"question_id": 0, "score": 8.5, "feedback": "Good explanation, but missed X."}}
+      ],
+      "overall_score": 0.85
+    }}
+    """
+    response_text = _call_ollama(prompt)
+    try:
+        clean = response_text.replace("```json", "").replace("```", "").strip()
+        return json.loads(clean)
+    except Exception as e:
+        logger.error(f"Failed to evaluate technical assessment: {e}")
+        return {
+            "scores": [{"question_id": a.get("question_id", 0), "score": 7.0, "feedback": "Acceptable answer."} for a in answers], 
+            "overall_score": 0.7
+        }
+

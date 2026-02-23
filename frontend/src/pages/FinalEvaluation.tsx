@@ -100,14 +100,15 @@ export default function FinalEvaluation() {
                         {/* Score breakdown */}
                         <div style={{ padding: '24px 36px' }}>
                             <h3 style={{ fontWeight: 700, fontSize: 15, color: 'var(--text)', margin: '0 0 16px' }}>Score Composition</h3>
-                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 12, marginBottom: 20 }}>
+                            <div style={{ display: 'flex', gap: 12, marginBottom: 20, flexWrap: 'wrap' }}>
                                 {[
-                                    { label: 'Resume Analysis', key: 'resume', weight: '30%', color: 'var(--primary)' },
-                                    { label: 'Interview Score', key: 'interview', weight: '50%', color: 'var(--blue)' },
-                                    { label: 'Your Rating', key: 'interviewer_rating', weight: '20%', color: 'var(--success)' },
+                                    { label: 'Resume Analysis', val: result.component_scores?.resume || 0, weight: result.technical_score !== undefined ? '25%' : '30%', color: 'var(--primary)' },
+                                    { label: 'Interview Score', val: result.component_scores?.interview || 0, weight: result.technical_score !== undefined ? '45%' : '50%', color: 'var(--blue)' },
+                                    ...(result.technical_score !== undefined ? [{ label: 'Tech Assessment', val: result.technical_score, weight: '30%', color: '#F59E0B' }] : []),
+                                    { label: 'Your Rating', val: rating, weight: '20% overlay', color: 'var(--success)' },
                                 ].map(s => (
-                                    <div key={s.label} style={{ textAlign: 'center', padding: '14px', background: 'var(--surface-2)', borderRadius: 12, border: '1px solid var(--glass-border)' }}>
-                                        <div style={{ fontSize: 22, fontWeight: 900, color: s.color }}>{Math.round((result.component_scores?.[s.key] || 0) * 100)}%</div>
+                                    <div key={s.label} style={{ flex: 1, minWidth: 100, textAlign: 'center', padding: '14px', background: 'var(--surface-2)', borderRadius: 12, border: '1px solid var(--glass-border)' }}>
+                                        <div style={{ fontSize: 22, fontWeight: 900, color: s.color }}>{Math.round(s.val * 100)}%</div>
                                         <div style={{ fontSize: 11, color: 'var(--text-muted)', fontWeight: 600, marginTop: 2 }}>{s.label}</div>
                                         <div style={{ fontSize: 10, color: 'var(--text-faint)', marginTop: 2 }}>weight {s.weight}</div>
                                     </div>

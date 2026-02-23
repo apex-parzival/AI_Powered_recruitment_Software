@@ -95,6 +95,7 @@ class FinalEvaluation(Base):
     application_id = Column(Integer, ForeignKey("applications.id"))
     resume_score = Column(Float)
     interview_score = Column(Float)
+    technical_score = Column(Float, nullable=True)   # NEW: from TechnicalAssessment
     subjective_score = Column(Float)
     final_score = Column(Float)
     verdict = Column(String, nullable=True)           # ACCEPT / HOLD / REJECT
@@ -102,3 +103,19 @@ class FinalEvaluation(Base):
     summary = Column(Text)
     full_assessment = Column(JSON, nullable=True)     # full Gemini assessment dict
     application = relationship("Application", back_populates="final_evaluation")
+
+
+class TechnicalAssessment(Base):
+    """AI-generated technical quiz sent to candidate before/during interview."""
+    __tablename__ = "technical_assessments"
+    id = Column(Integer, primary_key=True, index=True)
+    application_id = Column(Integer, ForeignKey("applications.id"))
+    questions = Column(JSON)            # list of {question, expected_answer, criterion, difficulty}
+    answers = Column(JSON, nullable=True)            # list of {question_id, answer_text}
+    scores = Column(JSON, nullable=True)             # list of {question_id, score 0-10, feedback}
+    overall_score = Column(Float, nullable=True)     # 0.0 – 1.0
+    status = Column(String, default="pending")       # pending | submitted | scored
+    token = Column(String, unique=True, index=True)  # shareable link token
+    created_at = Column(DateTime, default=datetime.utcnow)
+    submitted_at = Column(DateTime, nullable=True)
+
