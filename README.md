@@ -17,7 +17,8 @@
 
 ### 📄 AI Resume Preprocessing & Scoring
 - **Structured extraction** via Gemini Flash 2.0 — name, email, skills, experience, education, companies
-- **Multi-dimensional scoring** against job criteria (0–100 per criterion) with evidence quotes
+- **Enhanced AI Criteria Generation** — Auto-extracts a precise 7-field JSON schema (Location, Salary, Tech Skills, etc.) from job descriptions
+- **Multi-dimensional scoring** against structured job criteria (0–100 per criterion) with evidence quotes
 - **Bulk upload** — 1000+ PDFs via 64KB streaming chunks + 16-worker thread pool, batched DB commits of 50
 - **Recommendation flag** — auto-tags top-percentile candidates for interview
 - **JD Parsing** — Upload Job Description as PDF/Docx to auto-extract text during Job Creation
@@ -31,7 +32,7 @@
 - **Technical Assessments** — AI-generated timed coding/scenario quizzes per candidate, evaluated automatically
 
 ### 🏆 Final Assessment Engine
-- **Composite formula**: Resume 25% + Interview 45% + Tech Assessment 30% + Recruiter Rating Overlay
+- **Dynamic Composite Formula**: Hirers use interactive sliders to define precise 0-100% weights for Resume Analysis, Interview Score, Tech Assessment, and Recruiter Rating.
 - **5-level recruiter rating**: Strong Hire → Strong No Hire
 - **ACCEPT / HOLD / REJECT** verdict with gradient card, narrative, strengths, and concerns
 - Full verdict history stored with per-criterion breakdowns

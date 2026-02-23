@@ -90,24 +90,20 @@ Respond with ONLY the JSON object, no markdown, no explanation."""
     except Exception:
         return _mock_structured_fields()
 
-def score_resume_against_criteria(resume_text: str, criteria_config: list, job_title: str = "") -> dict:
+def score_resume_against_criteria(resume_text: str, criteria_config: dict, job_title: str = "") -> dict:
     """
-    Use Gemini Flash to score a resume against each job criterion.
-    criteria_config: [{ "name": str, "weight": float, "description": str }]
+    Use Gemini Flash to score a resume against each job criterion category.
+    criteria_config: The new 7-part criteria JSON
     Returns: { final_score, breakdown: [{ criterion, score, evidence, weight }], summary, recommendation }
     """
     if not resume_text:
         return _mock_score(criteria_config)
 
-    criteria_str = "\n".join(
-        f"- {c.get('name', c)}: weight={c.get('weight', 0.2) if isinstance(c, dict) else 0.2}"
-        + (f", description: {c.get('description', '')}" if isinstance(c, dict) and c.get('description') else "")
-        for c in criteria_config
-    )
+    criteria_str = json.dumps(criteria_config, indent=2)
 
     prompt = f"""You are an expert technical recruiter evaluating a resume for the role: {job_title or 'Software Engineer'}.
 
-Job criteria to evaluate against:
+Job criteria configuration (JSON):
 {criteria_str}
 
 Resume:
@@ -115,18 +111,28 @@ Resume:
 {resume_text[:6000]}
 \"\"\"
 
-Score the candidate on EACH criterion from 0-100, and extract specific evidence (quotes or paraphrases from the resume).
-Also flag any red flags and calculate a final weighted score.
+Score the candidate on EACH key area found in the criteria configuration from 0-100.
+Specifically, evaluate against: 
+- Location / Relocation
+- Salary expectations (if mentioned)
+- Required Experience
+- Technical Skills
+- Education
+- Industry Requirements
+- Custom Criteria
+
+For each area, extract specific evidence (quotes or paraphrases from the resume).
+Calculate a final normalized score (0.0 to 1.0) taking into account the holistic fit.
 
 Return ONLY valid JSON in this exact format:
 {{
   "final_score": 0.75,
   "breakdown": [
     {{
-      "criterion": "criterion name",
+      "criterion": "Technical Skills",
       "score": 85,
-      "weight": 0.4,
-      "evidence": "specific evidence from resume",
+      "weight": 0.3,
+      "evidence": "Candidate has 5 years Python and React",
       "verdict": "strong|adequate|weak|missing"
     }}
   ],
@@ -251,18 +257,26 @@ def _mock_structured_fields() -> dict:
         "summary": "Experienced software engineer with strong technical background. Proficient in modern development practices."
     }
 
-def _mock_score(criteria_config: list) -> dict:
+def _mock_score(criteria_config: dict) -> dict:
     import random
     breakdown = []
+    
+    categories = [
+        ("Location & Relocation", 0.1),
+        ("Experience", 0.3),
+        ("Technical Skills", 0.3),
+        ("Education", 0.1),
+        ("Industry Requirements", 0.1),
+        ("Custom Criteria", 0.1)
+    ]
+    
     total = 0
-    for c in criteria_config:
-        name = c.get("name", str(c)) if isinstance(c, dict) else str(c)
-        weight = c.get("weight", 0.25) if isinstance(c, dict) else 0.25
+    for name, weight in categories:
         score = random.randint(55, 92)
         total += score * weight
         breakdown.append({
             "criterion": name, "score": score, "weight": weight,
-            "evidence": f"[Mock] Relevant experience found in resume for {name}",
+            "evidence": f"[Mock] Evaluated candidate against {name}",
             "verdict": "adequate"
         })
     final = min(total / 100, 1.0)

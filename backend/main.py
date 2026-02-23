@@ -618,6 +618,10 @@ def submit_technical_assessment(token: str, req: SubmitTechnicalRequest, db: Ses
 class FinalAssessmentRequest(BaseModel):
     application_id: int
     interviewer_rating: float   # 0.0-1.0 (Strong Hire=1.0, Hire=0.75, Neutral=0.5, No Hire=0.25)
+    weight_resume: float = 0.20
+    weight_interview: float = 0.40
+    weight_tech: float = 0.20
+    weight_rating: float = 0.20
 
 @app.post("/assessments/final")
 def create_final_assessment(req: FinalAssessmentRequest, db: Session = Depends(get_db)):
@@ -656,19 +660,18 @@ def create_final_assessment(req: FinalAssessmentRequest, db: Session = Depends(g
     ).order_by(models.TechnicalAssessment.id.desc()).first()
     tech_score = float(tech.overall_score or 0.0) if tech else None
 
-    # Recalculate Weights if Tech exists
-    # If Tech exists: Resume(25%) + Interview(45%) + Tech(30%)
-    # If no Tech: Resume(30%) + Interview(50%) (subjective rating goes in later)
-    if tech_score is not None:
-        weighted_obj = 0.25 * resume_score + 0.45 * interview_score + 0.30 * tech_score
-    else:
-        weighted_obj = 0.375 * resume_score + 0.625 * interview_score # Normalize back to 1.0 (0.3/0.8, 0.5/0.8)
-
-    # Subjective rating is overlaid via final_assessment func
-    # So we'll pass the derived component as the base "interview_score" or handle it correctly:
-    # Actually, let's just use final_score calculation ourselves directly here
-    # 0.8 * Objective + 0.2 * Subjective
-    final_score = 0.8 * weighted_obj + 0.2 * req.interviewer_rating
+    # Apply user-defined dynamic weights
+    # If no tech score exists but the frontend still sent a tech weight, we should distribute it, 
+    # but the frontend will ensure tech_weight is 0 if no tech_score exists.
+    final_score = (
+        (resume_score * req.weight_resume) +
+        (interview_score * req.weight_interview) +
+        ((tech_score or 0.0) * req.weight_tech) +
+        (req.interviewer_rating * req.weight_rating)
+    )
+    
+    # Safety clamp
+    final_score = max(0.0, min(1.0, final_score))
     
     if final_score >= 0.75: verdict = "ACCEPT"
     elif final_score >= 0.5: verdict = "HOLD"

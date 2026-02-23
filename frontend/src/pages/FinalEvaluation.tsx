@@ -14,14 +14,34 @@ export default function FinalEvaluation() {
     const { applicationId } = useParams<{ applicationId: string }>();
     const navigate = useNavigate();
     const [rating, setRating] = useState(0.75);
+
+    // Dynamic weights
+    const [wResume, setWResume] = useState(20);
+    const [wInterview, setWInterview] = useState(40);
+    const [wTech, setWTech] = useState(20);
+    const [wRating, setWRating] = useState(20);
+
     const [loading, setLoading] = useState(false);
     const [result, setResult] = useState<any>(null);
 
+    const totalWeight = wResume + wInterview + wTech + wRating;
+
     const submit = async (e: React.FormEvent) => {
         e.preventDefault();
+        if (totalWeight !== 100) {
+            alert('Custom weights must sum exactly to 100%');
+            return;
+        }
+
         setLoading(true);
         try {
-            const r = await evaluationApi.submitFinal(parseInt(applicationId || '1'), rating);
+            const payload = {
+                weight_resume: wResume / 100,
+                weight_interview: wInterview / 100,
+                weight_tech: wTech / 100,
+                weight_rating: wRating / 100
+            };
+            const r = await evaluationApi.submitFinal(parseInt(applicationId || '1'), rating, payload);
             setResult(r.data);
         } catch (err: any) {
             alert(err?.response?.data?.detail || 'Error generating assessment. Ensure interview was completed first.');
@@ -44,11 +64,46 @@ export default function FinalEvaluation() {
 
             {!result ? (
                 <form onSubmit={submit} style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+                    {/* Weight Adjustment */}
+                    <div className="glass" style={{ padding: '28px 32px' }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 20 }}>
+                            <div>
+                                <h3 style={{ fontWeight: 800, fontSize: 17, color: 'var(--text)', margin: '0 0 6px' }}>Evaluation Weights</h3>
+                                <p style={{ fontSize: 14, color: 'var(--text-muted)', margin: 0 }}>
+                                    Adjust how much each component influences the final decision.
+                                </p>
+                            </div>
+                            <div style={{ padding: '8px 16px', borderRadius: 999, background: totalWeight === 100 ? 'var(--success-light)' : 'var(--error-light)', color: totalWeight === 100 ? 'var(--success)' : 'var(--error)', fontWeight: 800, fontSize: 14, border: `1px solid ${totalWeight === 100 ? 'rgba(34,197,94,0.3)' : 'rgba(239,68,68,0.3)'}` }}>
+                                Total: {totalWeight}%
+                            </div>
+                        </div>
+
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+                            {[
+                                { label: 'Resume Analysis', val: wResume, setter: setWResume, color: 'var(--primary)' },
+                                { label: 'Interview Score', val: wInterview, setter: setWInterview, color: 'var(--blue)' },
+                                { label: 'Technical Assessment', val: wTech, setter: setWTech, color: '#F59E0B' },
+                                { label: 'Your Recruiter Rating', val: wRating, setter: setWRating, color: 'var(--success)' }
+                            ].map((w, i) => (
+                                <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
+                                    <div style={{ width: 160, fontSize: 13, fontWeight: 700, color: 'var(--text-2)' }}>{w.label}</div>
+                                    <input
+                                        type="range" min="0" max="100" step="5"
+                                        value={w.val}
+                                        onChange={e => w.setter(parseInt(e.target.value))}
+                                        style={{ flex: 1, accentColor: w.color, cursor: 'pointer' }}
+                                    />
+                                    <div style={{ width: 44, textAlign: 'right', fontWeight: 800, fontSize: 15, color: w.color }}>{w.val}%</div>
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+
                     {/* Interviewer rating */}
                     <div className="glass" style={{ padding: '28px 32px' }}>
                         <h3 style={{ fontWeight: 800, fontSize: 17, color: 'var(--text)', margin: '0 0 6px' }}>Your Hiring Recommendation</h3>
                         <p style={{ fontSize: 14, color: 'var(--text-muted)', margin: '0 0 24px' }}>
-                            Your rating (20%) is combined with AI resume analysis (30%) and interview evaluation (50%) to make the final call.
+                            Select your personal verdict for this candidate.
                         </p>
                         <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
                             {ratingOptions.map(opt => (
@@ -64,7 +119,7 @@ export default function FinalEvaluation() {
                                         <div style={{ fontWeight: 700, fontSize: 15, color: 'var(--text)' }}>{opt.label}</div>
                                         <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>{opt.desc}</div>
                                     </div>
-                                    <div style={{ fontWeight: 800, fontSize: 18, color: opt.color }}>{Math.round(opt.value * 100)}%</div>
+                                    <div style={{ fontWeight: 800, fontSize: 18, color: opt.color }}>{(opt.value * 10).toFixed(1)}/10.0</div>
                                 </label>
                             ))}
                         </div>
@@ -102,10 +157,10 @@ export default function FinalEvaluation() {
                             <h3 style={{ fontWeight: 700, fontSize: 15, color: 'var(--text)', margin: '0 0 16px' }}>Score Composition</h3>
                             <div style={{ display: 'flex', gap: 12, marginBottom: 20, flexWrap: 'wrap' }}>
                                 {[
-                                    { label: 'Resume Analysis', val: result.component_scores?.resume || 0, weight: result.technical_score !== undefined ? '25%' : '30%', color: 'var(--primary)' },
-                                    { label: 'Interview Score', val: result.component_scores?.interview || 0, weight: result.technical_score !== undefined ? '45%' : '50%', color: 'var(--blue)' },
-                                    ...(result.technical_score !== undefined ? [{ label: 'Tech Assessment', val: result.technical_score, weight: '30%', color: '#F59E0B' }] : []),
-                                    { label: 'Your Rating', val: rating, weight: '20% overlay', color: 'var(--success)' },
+                                    { label: 'Resume Analysis', val: result.component_scores?.resume || 0, weight: `${wResume}%`, color: 'var(--primary)' },
+                                    { label: 'Interview Score', val: result.component_scores?.interview || 0, weight: `${wInterview}%`, color: 'var(--blue)' },
+                                    ...(result.technical_score !== undefined ? [{ label: 'Tech Assessment', val: result.technical_score, weight: `${wTech}%`, color: '#F59E0B' }] : []),
+                                    { label: 'Your Rating', val: rating, weight: `${wRating}% overlay`, color: 'var(--success)' },
                                 ].map(s => (
                                     <div key={s.label} style={{ flex: 1, minWidth: 100, textAlign: 'center', padding: '14px', background: 'var(--surface-2)', borderRadius: 12, border: '1px solid var(--glass-border)' }}>
                                         <div style={{ fontSize: 22, fontWeight: 900, color: s.color }}>{Math.round(s.val * 100)}%</div>

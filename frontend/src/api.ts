@@ -39,8 +39,12 @@ export const interviewApi = {
 };
 
 export const evaluationApi = {
-    submitFinal: (applicationId: number, interviewerRating: number) =>
-        api.post('/assessments/final', { application_id: applicationId, interviewer_rating: interviewerRating }),
+    submitFinal: (applicationId: number, interviewerRating: number, weights: any) =>
+        api.post('/assessments/final', {
+            application_id: applicationId,
+            interviewer_rating: interviewerRating,
+            ...weights
+        }),
     // legacy
     submitFinalLegacy: (data: any) => api.post('/evaluations/final', data),
 };

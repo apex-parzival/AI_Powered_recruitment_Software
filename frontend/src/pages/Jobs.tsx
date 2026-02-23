@@ -13,10 +13,11 @@ function PlusIcon() {
     return <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" /></svg>;
 }
 
-function SkillTag({ name, weight }: { name: string; weight: number }) {
+function CriteriaTag({ label, value }: { label: string; value: string }) {
+    if (!value) return null;
     return (
         <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, background: 'var(--primary-light)', color: 'var(--primary)', fontSize: 11, fontWeight: 600, padding: '3px 10px', borderRadius: 999, border: '1px solid rgba(124,58,237,0.2)' }}>
-            {name} <span style={{ opacity: 0.7 }}>· {Math.round(weight * 100)}%</span>
+            <span style={{ opacity: 0.7 }}>{label}:</span> {value}
         </span>
     );
 }
@@ -24,11 +25,16 @@ function SkillTag({ name, weight }: { name: string; weight: number }) {
 function JobCard({ job, onExtract, extracting, onView }: any) {
     const dept = job.department || 'General';
     const has = !!job.active_criteria;
-    // criteria_config is a list [{name, weight}] from seed — support both shapes
-    const rawCriteria = job.active_criteria?.criteria_config || [];
-    const criteria: any[] = Array.isArray(rawCriteria)
-        ? rawCriteria
-        : (rawCriteria.skills || Object.keys(rawCriteria).map((k: string) => ({ name: k, weight: 0.2 })));
+    const rawCriteria = job.active_criteria?.criteria_config || {};
+
+    // Extract highlights from the new criteria schema
+    const highlights = [];
+    if (rawCriteria.location && rawCriteria.location.toLowerCase() !== 'not specified') highlights.push({ label: '📍', value: rawCriteria.location });
+    if (rawCriteria.required_exp && rawCriteria.required_exp.toLowerCase() !== 'not specified') highlights.push({ label: '💼', value: rawCriteria.required_exp });
+    if (rawCriteria.salary && rawCriteria.salary.toLowerCase() !== 'not specified') highlights.push({ label: '💰', value: rawCriteria.salary });
+
+    const techCount = Array.isArray(rawCriteria.technical_skills_and_competency) ? rawCriteria.technical_skills_and_competency.length : 0;
+    if (techCount > 0) highlights.push({ label: '⚡', value: `${techCount} Tech Skills` });
 
     return (
         <div className="card" style={{ padding: 24, display: 'flex', flexDirection: 'column', gap: 16, cursor: 'pointer', transition: 'box-shadow 0.2s' }}
@@ -63,8 +69,9 @@ function JobCard({ job, onExtract, extracting, onView }: any) {
                         <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-2)' }}>AI Criteria v{job.active_criteria.version}</span>
                     </div>
                     <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
-                        {criteria.slice(0, 4).map((s: any, i: number) => <SkillTag key={i} name={s.name} weight={s.weight || s.weight_pct || 0.2} />)}
-                        {criteria.length > 4 && <span style={{ fontSize: 11, color: 'var(--text-faint)', padding: '3px 8px' }}>+{criteria.length - 4} more</span>}
+                        {highlights.slice(0, 4).map((h, i) => <CriteriaTag key={i} label={h.label} value={h.value} />)}
+                        {highlights.length === 0 && <span style={{ fontSize: 11, color: 'var(--text-faint)' }}>Criteria loaded</span>}
+                        {highlights.length > 4 && <span style={{ fontSize: 11, color: 'var(--text-faint)', padding: '3px 8px' }}>+{highlights.length - 4} more</span>}
                     </div>
                 </div>
             ) : (

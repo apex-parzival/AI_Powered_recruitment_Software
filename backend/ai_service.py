@@ -28,61 +28,84 @@ def _call_ollama(prompt: str, model: str = DEFAULT_MODEL) -> str:
 def generate_job_criteria(job_title: str, job_description: str) -> Dict[str, Any]:
     """
     Uses LLM to extract structured evaluation criteria from a job description.
-    Enforces that weights sum up to 1.0 (handled in prompt/post-process).
     """
     prompt = f"""
     You are an expert technical recruiter analyzing a job description.
     Job Title: {job_title}
     Job Description: {job_description}
     
-    Extract the key skills and experience required. 
+    Extract the key requirements and details.
     Format the output EXACTLY as this JSON logic (do not add any markdown, just raw JSON):
     {{
-        "skills": [
-            {{"name": "Skill 1", "weight": 0.4, "threshold": 3}},
-            {{"name": "Skill 2", "weight": 0.3, "threshold": 2}},
-            {{"name": "Skill 3", "weight": 0.3, "threshold": 3}}
+        "location": "name of the place",
+        "able_to_relocate": "yes/no",
+        "salary": "currency in inr",
+        "required_exp": "in years",
+        "technical_skills_and_competency": [
+            {{"language": "Python", "proficiency": "expert"}},
+            {{"language": "React", "proficiency": "intermediate"}}
         ],
-        "experience_years": 3,
-        "education": "Relevant Degree"
+        "educational_qualification": {{
+            "min_cgpa": "or percentile",
+            "max_backlogs": 0,
+            "stream": "Computer Science"
+        }},
+        "industry_specific_requirements": [
+            "experience in cloud deployments",
+            "certifications like AWS Solutions Architect"
+        ],
+        "custom_criteria": [
+            {{"name": "Communication", "requirement": "Strong written and verbal communication"}}
+        ]
     }}
-    IMPORTANT: The sum of all skill weights MUST EXACTLY equal 1.0.
+    IMPORTANT: Extract all relevant details into this EXACT structure. If a field is not found, leave it as an empty string or empty list.
     """
     response_text = _call_ollama(prompt)
     if not response_text:
         # Fallback Mock if Ollama is not running
         return {
-            "skills": [
-                {"name": "Python", "weight": 0.5, "threshold": 3},
-                {"name": "FastAPI", "weight": 0.3, "threshold": 2},
-                {"name": "React", "weight": 0.2, "threshold": 2}
+            "location": "Remote",
+            "able_to_relocate": "no",
+            "salary": "15,00,000 INR",
+            "required_exp": "2 years",
+            "technical_skills_and_competency": [
+                {"language": "Python", "proficiency": "expert"},
+                {"language": "React", "proficiency": "intermediate"},
+                {"language": "FastAPI", "proficiency": "expert"}
             ],
-            "experience_years": 2,
-            "education": "BS CS"
+            "educational_qualification": {
+                "min_cgpa": "7.5",
+                "max_backlogs": 0,
+                "stream": "Computer Science"
+            },
+            "industry_specific_requirements": ["Experience in developing scalable APIs"],
+            "custom_criteria": [
+                {"name": "Problem Solving", "requirement": "Strong algorithmic background"}
+            ]
         }
     
     try:
         # Strip potential markdown blocks
         clean_json = response_text.replace("```json", "").replace("```", "").strip()
         criteria = json.loads(clean_json)
-        
-        # Normalize weights just to ensure total is 1.0
-        if "skills" in criteria:
-            total_weight = sum(skill.get("weight", 0) for skill in criteria["skills"])
-            if total_weight > 0:
-                for skill in criteria["skills"]:
-                    skill["weight"] = round(skill.get("weight", 0) / total_weight, 2)
-                    
         return criteria
     except Exception as e:
         logger.error(f"Failed to parse LLM json response: {e}, using fallback.")
         return {
-            "skills": [
-                {"name": "Communication", "weight": 0.5, "threshold": 3},
-                {"name": "Problem Solving", "weight": 0.5, "threshold": 3}
+            "location": "Not Specified",
+            "able_to_relocate": "yes",
+            "salary": "Negotiable",
+            "required_exp": "1+ years",
+            "technical_skills_and_competency": [
+                {"language": "Software Engineering", "proficiency": "intermediate"}
             ],
-            "experience_years": 1,
-            "education": "Any"
+            "educational_qualification": {
+                "min_cgpa": "Not Specified",
+                "max_backlogs": 0,
+                "stream": "Any"
+            },
+            "industry_specific_requirements": [],
+            "custom_criteria": []
         }
 
 def generate_technical_assessment(job_title: str, criteria_config: list) -> list:
