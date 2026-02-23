@@ -21,6 +21,9 @@ class CriteriaVersionResponse(BaseModel):
     class Config:
         from_attributes = True
 
+class CriteriaUpdate(BaseModel):
+    criteria_config: Dict[str, Any]
+
 class JobCreate(BaseModel):
     title: str
     description: str

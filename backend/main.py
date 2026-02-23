@@ -164,6 +164,27 @@ def generate_criteria(job_id: int, db: Session = Depends(get_db)):
     db.add(ver); db.commit(); db.refresh(ver)
     return ver
 
+@app.put("/jobs/{job_id}/criteria", response_model=schemas.CriteriaVersionResponse)
+def update_criteria(job_id: int, req: schemas.CriteriaUpdate, db: Session = Depends(get_db)):
+    """Manually update or override job criteria, saving custom fields and weights."""
+    job = db.query(models.Job).filter(models.Job.id == job_id).first()
+    if not job: raise HTTPException(404, "Job not found")
+    
+    # Deactivate current
+    db.query(models.CriteriaVersion).filter(models.CriteriaVersion.job_id == job_id).update({"is_active": False})
+    
+    # Create new version tracking manual modifications
+    last = db.query(models.CriteriaVersion).filter(models.CriteriaVersion.job_id == job_id).order_by(models.CriteriaVersion.version.desc()).first()
+    ver = models.CriteriaVersion(
+        job_id=job.id, 
+        version=(last.version+1 if last else 1),
+        version_number=(last.version+1 if last else 1),
+        criteria_config=req.criteria_config, 
+        is_active=True
+    )
+    db.add(ver); db.commit(); db.refresh(ver)
+    return ver
+
 # ─────────────────────────────────────────────────────────────────────────────
 # BULK RESUME UPLOAD (1000+ support)
 # ─────────────────────────────────────────────────────────────────────────────

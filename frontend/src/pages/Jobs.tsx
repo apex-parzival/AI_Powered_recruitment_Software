@@ -109,6 +109,12 @@ export default function Jobs() {
     const [jobs, setJobs] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
     const [showModal, setShowModal] = useState(false);
+
+    // New state for Criteria Modal
+    const [activeJobForCriteria, setActiveJobForCriteria] = useState<any>(null);
+    const [criteriaForm, setCriteriaForm] = useState<any>({ custom_criteria: [], weights: { wResume: 20, wInterview: 40, wTech: 20, wRating: 20 } });
+    const [savingCriteria, setSavingCriteria] = useState(false);
+
     const [extracting, setExtracting] = useState<number | null>(null);
     const [form, setForm] = useState({ title: '', department: '', description: '' });
     const [submitting, setSubmitting] = useState(false);
@@ -132,6 +138,35 @@ export default function Jobs() {
         setExtracting(id);
         try { await jobsApi.generateCriteria(id); await fetchJobs(); }
         catch (e) { console.error(e); } finally { setExtracting(null); }
+    };
+
+    const handleOpenCriteriaModal = (job: any) => {
+        const conf = job.active_criteria?.criteria_config || {};
+        setCriteriaForm({
+            ...conf,
+            custom_criteria: conf.custom_criteria || [],
+            weights: conf.weights || { wResume: 20, wInterview: 40, wTech: 20, wRating: 20 }
+        });
+        setActiveJobForCriteria(job);
+    };
+
+    const handleSaveCriteria = async () => {
+        const { wResume, wInterview, wTech, wRating } = criteriaForm.weights;
+        if (wResume + wInterview + wTech + wRating !== 100) {
+            alert('Weights must exactly sum to 100%');
+            return;
+        }
+        setSavingCriteria(true);
+        try {
+            await jobsApi.updateCriteria(activeJobForCriteria.id, criteriaForm);
+            await fetchJobs();
+            setActiveJobForCriteria(null);
+        } catch (err) {
+            console.error(err);
+            alert("Failed to save criteria config");
+        } finally {
+            setSavingCriteria(false);
+        }
     };
 
     const handleUploadJD = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -198,7 +233,13 @@ export default function Jobs() {
             ) : (
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(340px, 1fr))', gap: 20 }}>
                     {jobs.map(job => (
-                        <JobCard key={job.id} job={job} onExtract={extractCriteria} extracting={extracting} onView={(id: number) => navigate(`/jobs/${id}/pipeline`)} />
+                        <div key={job.id} onClick={(e) => {
+                            if (job.active_criteria && !(e.target as HTMLElement).closest('button')) {
+                                handleOpenCriteriaModal(job);
+                            }
+                        }}>
+                            <JobCard job={job} onExtract={extractCriteria} extracting={extracting} onView={(id: number) => navigate(`/jobs/${id}/pipeline`)} />
+                        </div>
                     ))}
                 </div>
             )}
@@ -248,6 +289,89 @@ export default function Jobs() {
                                     </button>
                                 </div>
                             </form>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Edit Criteria Modal */}
+            {activeJobForCriteria && (
+                <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', backdropFilter: 'blur(4px)', zIndex: 100, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24, overflowY: 'auto' }}>
+                    <div className="card" style={{ width: '100%', maxWidth: 700, padding: 32, maxHeight: '90vh', overflowY: 'auto' }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 }}>
+                            <div>
+                                <h2 style={{ fontWeight: 800, fontSize: 22, color: 'var(--text)', margin: '0 0 4px' }}>Configure Evaluating Criteria</h2>
+                                <p style={{ fontSize: 13, color: 'var(--text-muted)', margin: 0 }}>Add custom criteria and set Default Assesment Weights for {activeJobForCriteria.title}</p>
+                            </div>
+                            <button onClick={() => setActiveJobForCriteria(null)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)', padding: 4, borderRadius: 8, fontSize: 20 }}>✕</button>
+                        </div>
+
+                        {/* Custom Criteria section */}
+                        <div style={{ marginBottom: 24 }}>
+                            <h3 style={{ fontSize: 14, fontWeight: 700, marginBottom: 12 }}>Custom Criteria</h3>
+                            <div style={{ background: 'var(--surface)', padding: 16, borderRadius: 12, border: '1px solid var(--border)', marginBottom: 12, display: 'flex', flexDirection: 'column', gap: 12 }}>
+                                {criteriaForm.custom_criteria.map((c: any, i: number) => (
+                                    <div key={i} style={{ display: 'flex', gap: 12 }}>
+                                        <input className="input" placeholder="e.g. Leadership" style={{ flex: 1 }} value={c.name} onChange={e => {
+                                            const arr = [...criteriaForm.custom_criteria];
+                                            arr[i].name = e.target.value;
+                                            setCriteriaForm({ ...criteriaForm, custom_criteria: arr });
+                                        }} />
+                                        <input className="input" placeholder="Requirement description" style={{ flex: 2 }} value={c.requirement} onChange={e => {
+                                            const arr = [...criteriaForm.custom_criteria];
+                                            arr[i].requirement = e.target.value;
+                                            setCriteriaForm({ ...criteriaForm, custom_criteria: arr });
+                                        }} />
+                                        <button className="btn-secondary" style={{ padding: '0 12px', border: 'none', color: 'var(--error)' }} onClick={() => {
+                                            const arr = criteriaForm.custom_criteria.filter((_: any, idx: number) => idx !== i);
+                                            setCriteriaForm({ ...criteriaForm, custom_criteria: arr });
+                                        }}>✕</button>
+                                    </div>
+                                ))}
+                                <button className="btn-secondary" style={{ alignSelf: 'flex-start', fontSize: 13, gap: 4 }} onClick={() => {
+                                    setCriteriaForm({ ...criteriaForm, custom_criteria: [...criteriaForm.custom_criteria, { name: '', requirement: '' }] });
+                                }}><PlusIcon /> Add Custom Field</button>
+                            </div>
+                        </div>
+
+                        {/* Slider section */}
+                        <div style={{ marginBottom: 24 }}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+                                <h3 style={{ fontSize: 14, fontWeight: 700, margin: 0 }}>Default Assessment Weights</h3>
+                                <div style={{ fontSize: 12, fontWeight: 700, padding: '4px 10px', borderRadius: 999, background: (criteriaForm.weights.wResume + criteriaForm.weights.wInterview + criteriaForm.weights.wTech + criteriaForm.weights.wRating) === 100 ? 'var(--success-light)' : 'var(--error-light)', color: (criteriaForm.weights.wResume + criteriaForm.weights.wInterview + criteriaForm.weights.wTech + criteriaForm.weights.wRating) === 100 ? 'var(--success)' : 'var(--error)' }}>
+                                    Total: {criteriaForm.weights.wResume + criteriaForm.weights.wInterview + criteriaForm.weights.wTech + criteriaForm.weights.wRating}%
+                                </div>
+                            </div>
+
+                            <div style={{ background: 'var(--surface)', padding: 24, borderRadius: 12, border: '1px solid var(--border)', display: 'flex', flexDirection: 'column', gap: 20 }}>
+                                {[
+                                    { key: 'wResume', label: 'Resume Score', color: 'var(--primary)' },
+                                    { key: 'wInterview', label: 'Interview Score', color: 'var(--blue)' },
+                                    { key: 'wTech', label: 'Tech Assessment', color: '#F59E0B' },
+                                    { key: 'wRating', label: 'Recruiter Rating', color: 'var(--success)' },
+                                ].map(slider => (
+                                    <div key={slider.key} style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
+                                        <div style={{ width: 140, fontSize: 13, fontWeight: 600 }}>{slider.label}</div>
+                                        <input
+                                            type="range" min="0" max="100" step="5"
+                                            value={criteriaForm.weights[slider.key as keyof typeof criteriaForm.weights]}
+                                            onChange={e => setCriteriaForm({
+                                                ...criteriaForm,
+                                                weights: { ...criteriaForm.weights, [slider.key]: parseInt(e.target.value) }
+                                            })}
+                                            style={{ flex: 1, accentColor: slider.color }}
+                                        />
+                                        <div style={{ width: 40, textAlign: 'right', fontWeight: 700, color: slider.color }}>{criteriaForm.weights[slider.key as keyof typeof criteriaForm.weights]}%</div>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+
+                        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 12, marginTop: 12 }}>
+                            <button className="btn-secondary" onClick={() => setActiveJobForCriteria(null)}>Cancel</button>
+                            <button className="btn-primary" onClick={handleSaveCriteria} disabled={savingCriteria}>
+                                {savingCriteria ? 'Saving...' : 'Save Configuration'}
+                            </button>
                         </div>
                     </div>
                 </div>

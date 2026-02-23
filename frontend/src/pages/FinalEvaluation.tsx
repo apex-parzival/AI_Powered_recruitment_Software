@@ -1,6 +1,6 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { evaluationApi } from '../api';
+import { evaluationApi, resumesApi, jobsApi } from '../api';
 
 const ratingOptions = [
     { label: 'Strong Hire', value: 1.0, color: '#22C55E', bg: '#DCFCE7', desc: 'Outstanding candidate, proceed immediately' },
@@ -23,6 +23,32 @@ export default function FinalEvaluation() {
 
     const [loading, setLoading] = useState(false);
     const [result, setResult] = useState<any>(null);
+
+    // Initial load: Fetch application -> job -> active_criteria
+    useEffect(() => {
+        const fetchWeights = async () => {
+            if (!applicationId) return;
+            try {
+                const appRes = await resumesApi.getDetails(parseInt(applicationId));
+                const jobId = appRes.data?.application?.job_id;
+                if (!jobId) return;
+
+                const jobsRes = await jobsApi.getAll();
+                const job = jobsRes.data.find((j: any) => j.id === jobId);
+
+                if (job?.active_criteria?.criteria_config?.weights) {
+                    const w = job.active_criteria.criteria_config.weights;
+                    setWResume(w.wResume || 20);
+                    setWInterview(w.wInterview || 40);
+                    setWTech(w.wTech || 20);
+                    setWRating(w.wRating || 20);
+                }
+            } catch (err) {
+                console.error("Failed to load job weights", err);
+            }
+        };
+        fetchWeights();
+    }, [applicationId]);
 
     const totalWeight = wResume + wInterview + wTech + wRating;
 

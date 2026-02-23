@@ -8,6 +8,7 @@ export const jobsApi = {
     getAll: () => api.get('/jobs'),
     create: (data: any) => api.post('/jobs', data),
     generateCriteria: (id: number) => api.post(`/jobs/${id}/criteria/generate`),
+    updateCriteria: (id: number, config: any) => api.put(`/jobs/${id}/criteria`, { criteria_config: config }),
     uploadJD: (formData: FormData) => api.post(`/jobs/parse-jd`, formData, { headers: { 'Content-Type': 'multipart/form-data' } }),
 };
 
