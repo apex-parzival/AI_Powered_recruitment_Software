@@ -390,18 +390,21 @@ function makeDraggable(el, handle) {
     });
 }
 
-// ── Init: wait for Meet to load, then inject ──────────────────────────────────
-function tryInject() {
-    // Wait for Meet's main meeting container
-    if (document.querySelector('[data-meeting-code], [jsname="r4nke"]') || document.readyState === 'complete') {
+// ── Init: wait for Meet to load, then inject & persist ──────────────────────
+function ensureInjected() {
+    // Only inject on actual meeting or pre-call pages (URL length > 22 like meet.google.com/abc-defg-hij)
+    if (window.location.pathname.length > 5 && !document.getElementById('talentai-panel')) {
         buildPanel();
-    } else {
-        setTimeout(tryInject, 1000);
     }
 }
 
-if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', tryInject);
-} else {
-    tryInject();
-}
+// Check exactly when DOM is ready, and keep checking periodically 
+// because Google Meet's React app heavily manipulates the DOM
+ensureInjected();
+setInterval(ensureInjected, 2000);
+
+// Watch for React nuking the body
+const observer = new MutationObserver((mutations) => {
+    ensureInjected();
+});
+observer.observe(document.body, { childList: true, subtree: false });
