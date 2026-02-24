@@ -46,22 +46,42 @@ def _parse_json(raw: str) -> dict | list | None:
         return None
 
 # ── Meeting room ──────────────────────────────────────────────────────────────
+import hashlib
+import string
+
+def _make_gmeet_code(session_id: int) -> str:
+    """
+    Generate a stable Google Meet room code from the session ID.
+    Format: abc-defg-hij  (3-4-3 lowercase letters)
+    When the first person visits meet.google.com/<code>, Google creates the room.
+    """
+    h = hashlib.sha256(f"talentai-{session_id}".encode()).hexdigest()
+    alpha = string.ascii_lowercase
+    # Map hex chars to letters deterministically
+    def to_letters(start, length):
+        return ''.join(alpha[int(h[i], 16) % 26] for i in range(start, start + length))
+    p1 = to_letters(0, 3)
+    p2 = to_letters(3, 4)
+    p3 = to_letters(7, 3)
+    return f"{p1}-{p2}-{p3}"
+
 def create_meeting_room(session_id: int, job_title: str = "", candidate_name: str = "") -> dict:
     """
-    Create a Jitsi Meet room for the interview session.
-    Returns the meeting URL along with interviewer URL (with params).
-    No API key required — uses free Jitsi public infrastructure.
+    Generate a Google Meet room link for the interview session.
+    Uses a deterministic room code derived from session_id so the same
+    link is always returned for the same session.
     """
-    room_name = f"talentai-interview-{session_id}-{uuid.uuid4().hex[:8]}"
-    base_url = f"{JITSI_BASE}/{room_name}"
+    code = _make_gmeet_code(session_id)
+    meet_url = f"https://meet.google.com/{code}"
 
     return {
-        "room_name": room_name,
-        "meeting_url": base_url,
-        "candidate_url": base_url,                          # candidate just joins
-        "interviewer_url": f"/interview-room/{session_id}",  # our app wrapper
-        "jitsi_room": room_name,
+        "room_name": code,
+        "meeting_url": meet_url,
+        "candidate_url": meet_url,
+        "interviewer_url": f"/interview-room/{session_id}",
+        "jitsi_room": code,   # kept for model compat — now stores meet code
     }
+
 
 # ── AI follow-up questions ────────────────────────────────────────────────────
 def generate_followup_questions(

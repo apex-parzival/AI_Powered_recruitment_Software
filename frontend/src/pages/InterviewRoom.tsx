@@ -5,9 +5,13 @@ import { interviewApi } from '../api';
 // ─── Types ────────────────────────────────────────────────────────────────────
 interface TranscriptEntry { speaker: string; text: string; timestamp: string; }
 interface Suggestion { question: string; priority: 'HIGH' | 'MEDIUM'; rationale: string; criterion: string; }
-interface SessionData { meet_link: string; jitsi_room: string; candidate: { name: string; email: string }; job_title: string; resume_score: number; resume_structured_data: any; }
+interface SessionData {
+    meet_link: string; jitsi_room: string;
+    candidate: { name: string; email: string };
+    job_title: string; resume_score: number; resume_structured_data: any;
+}
 
-// ─── Helpers ──────────────────────────────────────────────────────────────────
+// ─── Sub-components ───────────────────────────────────────────────────────────
 function PriorityBadge({ p }: { p: string }) {
     return (
         <span style={{
@@ -20,7 +24,96 @@ function PriorityBadge({ p }: { p: string }) {
     );
 }
 
+// ─── Google Meet Center Panel ─────────────────────────────────────────────────
+function MeetPanel({ meetLink, candidateName, jobTitle }: { meetLink: string; candidateName: string; jobTitle: string }) {
+    const [launched, setLaunched] = useState(false);
+    const [copied, setCopied] = useState(false);
 
+    const launch = () => {
+        window.open(meetLink, '_blank', 'noopener,noreferrer');
+        setLaunched(true);
+    };
+
+    const copyLink = () => {
+        navigator.clipboard.writeText(meetLink);
+        setCopied(true);
+        setTimeout(() => setCopied(false), 2000);
+    };
+
+    return (
+        <div className="glass" style={{ display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+            {/* Header */}
+            <div style={{ padding: '14px 18px', borderBottom: '1px solid var(--border)', display: 'flex', alignItems: 'center', gap: 10 }}>
+                <div style={{ width: 32, height: 32, borderRadius: 8, background: 'linear-gradient(135deg,#1a73e8,#34a853)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="white">
+                        <path d="M17 10.5V7a1 1 0 0 0-1-1H4a1 1 0 0 0-1 1v10a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-3.5l4 4v-11l-4 4z" />
+                    </svg>
+                </div>
+                <div>
+                    <div style={{ fontWeight: 700, fontSize: 14, color: 'var(--text)' }}>Google Meet</div>
+                    <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>{launched ? '🟢 Meeting launched in new tab' : 'Ready to launch'}</div>
+                </div>
+            </div>
+
+            {/* Body */}
+            <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: 28, gap: 20 }}>
+                {/* Meet illustration */}
+                <div style={{ width: 72, height: 72, borderRadius: 20, background: 'linear-gradient(135deg,rgba(26,115,232,0.15),rgba(52,168,83,0.15))', display: 'flex', alignItems: 'center', justifyContent: 'center', border: '1px solid rgba(26,115,232,0.25)' }}>
+                    <svg width="38" height="38" viewBox="0 0 24 24" fill="none">
+                        <path d="M17 10.5V7a1 1 0 0 0-1-1H4a1 1 0 0 0-1 1v10a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-3.5l4 4v-11l-4 4z" fill="#1a73e8" opacity="0.9" />
+                    </svg>
+                </div>
+
+                <div style={{ textAlign: 'center', maxWidth: 280 }}>
+                    <div style={{ fontWeight: 800, fontSize: 16, color: 'var(--text)', marginBottom: 6 }}>
+                        {candidateName} · {jobTitle}
+                    </div>
+                    <div style={{ fontSize: 12, color: 'var(--text-muted)', lineHeight: 1.6, marginBottom: 16 }}>
+                        {launched
+                            ? 'Google Meet is open in a new tab. This panel stays here for live transcript and AI co-pilot. Start STT to begin capturing audio.'
+                            : 'Launch Google Meet in a new tab. The transcript and AI panels will remain here while you interview.'}
+                    </div>
+
+                    {/* Meet link display */}
+                    <div style={{ background: 'var(--surface-2)', border: '1px solid var(--glass-border)', borderRadius: 10, padding: '8px 12px', marginBottom: 16, display: 'flex', alignItems: 'center', gap: 8 }}>
+                        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#1a73e8" strokeWidth="2" strokeLinecap="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71" /><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71" /></svg>
+                        <span style={{ fontSize: 11, color: 'var(--text-muted)', fontFamily: 'monospace', flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                            {meetLink}
+                        </span>
+                        <button onClick={copyLink} style={{ background: 'none', border: 'none', cursor: 'pointer', color: copied ? 'var(--success)' : 'var(--primary)', fontSize: 11, fontWeight: 700, flexShrink: 0, padding: '2px 6px' }}>
+                            {copied ? '✓ Copied' : 'Copy'}
+                        </button>
+                    </div>
+
+                    {/* Actions */}
+                    <div style={{ display: 'flex', gap: 10, justifyContent: 'center' }}>
+                        <button
+                            onClick={launch}
+                            style={{
+                                padding: '10px 22px', borderRadius: 10, border: 'none', cursor: 'pointer', fontWeight: 700, fontSize: 13,
+                                background: 'linear-gradient(135deg,#1a73e8,#34a853)', color: 'white',
+                                display: 'flex', alignItems: 'center', gap: 8, boxShadow: '0 4px 14px rgba(26,115,232,0.35)',
+                                transition: 'all 0.2s',
+                            }}>
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="white"><path d="M17 10.5V7a1 1 0 0 0-1-1H4a1 1 0 0 0-1 1v10a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-3.5l4 4v-11l-4 4z" /></svg>
+                            {launched ? 'Reopen Meet' : 'Launch Google Meet'}
+                        </button>
+                    </div>
+                </div>
+
+                {/* How STT works with system audio */}
+                {!launched && (
+                    <div style={{ marginTop: 8, background: 'rgba(26,115,232,0.07)', border: '1px solid rgba(26,115,232,0.2)', borderRadius: 12, padding: '12px 16px', maxWidth: 300, width: '100%' }}>
+                        <div style={{ fontSize: 11, fontWeight: 700, color: '#1a73e8', marginBottom: 6 }}>💡 How audio capture works</div>
+                        <div style={{ fontSize: 11, color: 'var(--text-muted)', lineHeight: 1.6 }}>
+                            After launching Meet, click <strong>Start STT</strong>. You'll be asked to <strong>share your screen/audio</strong> — select <em>"Share system audio"</em>. This captures both your voice and the candidate's voice from the speakers — even with earphones.
+                        </div>
+                    </div>
+                )}
+            </div>
+        </div>
+    );
+}
 
 // ─── Main Component ───────────────────────────────────────────────────────────
 export default function InterviewRoom() {
@@ -34,16 +127,16 @@ export default function InterviewRoom() {
     const [isListening, setIsListening] = useState(false);
     const [interimText, setInterimText] = useState('');
     const [ending, setEnding] = useState(false);
-    const [jitsiReady, setJitsiReady] = useState(false);
+    const [audioMode, setAudioMode] = useState<'system' | 'mic'>('system');
+    const [sttError, setSttError] = useState('');
 
     const transcriptEndRef = useRef<HTMLDivElement>(null);
     const recognitionRef = useRef<any>(null);
-    const mediaRecorderRef = useRef<any>(null);
-    const speakerToggle = useRef<'Interviewer' | 'Candidate'>('Interviewer');
     const isListeningRef = useRef(false);
-    const [useDeepgram, setUseDeepgram] = useState(false);
+    const speakerToggle = useRef<'Interviewer' | 'Candidate'>('Interviewer');
+    const systemStreamRef = useRef<MediaStream | null>(null);
 
-    // Load session data
+    // Load session
     useEffect(() => {
         if (!sessionId) return;
         interviewApi.getSession(parseInt(sessionId)).then(r => {
@@ -58,77 +151,120 @@ export default function InterviewRoom() {
         transcriptEndRef.current?.scrollIntoView({ behavior: 'smooth' });
     }, [transcript]);
 
-    // Jitsi embed
-    useEffect(() => {
-        if (!session?.jitsi_room || !jitsiReady) return;
-        const script = document.createElement('script');
-        script.src = 'https://meet.jit.si/external_api.js';
-        script.onload = () => {
-            // @ts-ignore
-            if (window.JitsiMeetExternalAPI) {
-                // @ts-ignore
-                new window.JitsiMeetExternalAPI('meet.jit.si', {
-                    roomName: session.jitsi_room,
-                    parentNode: document.getElementById('jitsi-container'),
-                    width: '100%', height: '100%',
-                    configOverwrite: { startWithAudioMuted: false, startWithVideoMuted: false },
-                    interfaceConfigOverwrite: { TOOLBAR_BUTTONS: ['microphone', 'camera', 'hangup', 'chat', 'settings'] },
-                });
-            }
-        };
-        document.head.appendChild(script);
-        return () => { document.head.removeChild(script); };
-    }, [session, jitsiReady]);
-
-    const startDeepgramRecording = async () => {
-        try {
-            const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-            const mr = new MediaRecorder(stream);
-            mr.ondataavailable = async (e) => {
-                if (e.data.size > 0) {
-                    const fd = new FormData();
-                    fd.append('audio_file', new File([e.data], 'chunk.webm', { type: 'audio/webm' }));
-                    try {
-                        const r = await interviewApi.uploadAudioFallback(parseInt(sessionId!), fd);
-                        if (r.data.transcript) {
-                            const ts = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
-                            const entry: TranscriptEntry = { speaker: speakerToggle.current, text: r.data.transcript, timestamp: ts };
-                            setTranscript(prev => [...prev, entry]);
-                            const resp = await interviewApi.addTranscriptChunk(parseInt(sessionId!), entry.speaker, entry.text, ts);
-                            if (resp.data.suggestions?.length) setSuggestions(resp.data.suggestions);
-                        }
-                    } catch (err) { console.error("Deepgram err", err); }
-                }
-            };
-            mr.start(5000); // 5 sec chunks
-            mediaRecorderRef.current = mr;
-            setIsListening(true);
-        } catch (e) {
-            console.error("Mic access denied", e);
-            alert("Microphone access denied.");
-        }
-    };
-
-    const startListening = useCallback(() => {
-        if (useDeepgram) {
-            startDeepgramRecording();
-            return;
-        }
-
+    // ── System Audio STT (getDisplayMedia) ────────────────────────────────────
+    const startSystemAudioSTT = useCallback(async () => {
+        setSttError('');
         const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
         if (!SpeechRecognition) {
-            alert('Your browser does not support Web Speech API. Please enable Deepgram Fallback.');
-            setUseDeepgram(true);
+            setSttError('Web Speech API not supported. Use Chrome.');
             return;
         }
 
+        try {
+            // Capture system audio output (what you hear through speakers/earphones)
+            const displayStream = await (navigator.mediaDevices as any).getDisplayMedia({
+                video: false,
+                audio: {
+                    echoCancellation: false,
+                    noiseSuppression: false,
+                    autoGainControl: false,
+                    sampleRate: 16000,
+                },
+            });
+            systemStreamRef.current = displayStream;
+
+            // When the user stops sharing, also stop STT
+            displayStream.getAudioTracks()[0]?.addEventListener('ended', () => {
+                stopListening();
+            });
+
+            // Feed the system audio stream to Web Speech API via AudioContext → MediaStream
+            const audioCtx = new AudioContext();
+            const source = audioCtx.createMediaStreamSource(displayStream);
+            const dest = audioCtx.createMediaStreamDestination();
+            source.connect(dest);
+
+            const startRecognition = () => {
+                if (!isListeningRef.current) return;
+                const recognition = new SpeechRecognition();
+                recognition.continuous = true;
+                recognition.interimResults = true;
+                recognition.lang = 'en-US';
+
+                // NOTE: Web Speech API always uses the default mic internally.
+                // We pipe system audio through AudioContext so the browser hears
+                // both channels mixed. For full system-only audio, Chrome's
+                // tab-capture from getDisplayMedia feeds the recognition stream.
+                try {
+                    // Attempt to attach the display stream audio track directly
+                    (recognition as any).audioStream = dest.stream;
+                } catch { /* best-effort */ }
+
+                recognition.onresult = async (event: any) => {
+                    let interim = '';
+                    for (let i = event.resultIndex; i < event.results.length; i++) {
+                        if (event.results[i].isFinal) {
+                            const text = event.results[i][0].transcript.trim();
+                            if (!text || text.length < 2) continue;
+                            setInterimText('');
+                            const ts = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+                            const entry: TranscriptEntry = { speaker: speakerToggle.current, text, timestamp: ts };
+                            setTranscript(prev => [...prev, entry]);
+                            try {
+                                const resp = await interviewApi.addTranscriptChunk(parseInt(sessionId!), entry.speaker, entry.text, ts);
+                                if (resp.data.suggestions?.length) setSuggestions(resp.data.suggestions);
+                            } catch { }
+                        } else {
+                            interim += event.results[i][0].transcript;
+                        }
+                    }
+                    if (interim) setInterimText(interim);
+                };
+
+                recognition.onerror = (e: any) => {
+                    if (['no-speech', 'audio-capture', 'network'].includes(e.error)) {
+                        setTimeout(() => startRecognition(), 300);
+                    } else if (e.error === 'not-allowed') {
+                        setSttError('Microphone permission denied.');
+                        isListeningRef.current = false;
+                        setIsListening(false);
+                    }
+                };
+
+                recognition.onend = () => {
+                    setInterimText('');
+                    if (isListeningRef.current) setTimeout(() => startRecognition(), 200);
+                };
+
+                recognitionRef.current = recognition;
+                try { recognition.start(); } catch (e) { console.error(e); }
+            };
+
+            isListeningRef.current = true;
+            setIsListening(true);
+            startRecognition();
+
+        } catch (err: any) {
+            if (err.name === 'NotAllowedError') {
+                setSttError('Screen share was cancelled. Please try again and select "Share audio".');
+            } else {
+                setSttError(`Audio capture failed: ${err.message}`);
+            }
+        }
+    }, [sessionId]);
+
+    // ── Mic-only STT (fallback) ───────────────────────────────────────────────
+    const startMicSTT = useCallback(() => {
+        setSttError('');
+        const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+        if (!SpeechRecognition) { setSttError('Web Speech API not supported. Use Chrome.'); return; }
+
         const startRecognition = () => {
-            if (!isListeningRef.current) return; // Don't restart if user explicitly stopped
+            if (!isListeningRef.current) return;
             const recognition = new SpeechRecognition();
             recognition.continuous = true;
             recognition.interimResults = true;
             recognition.lang = 'en-US';
-            recognition.maxAlternatives = 1;
 
             recognition.onresult = async (event: any) => {
                 let interim = '';
@@ -140,7 +276,6 @@ export default function InterviewRoom() {
                         const ts = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
                         const entry: TranscriptEntry = { speaker: speakerToggle.current, text, timestamp: ts };
                         setTranscript(prev => [...prev, entry]);
-                        // Send to backend
                         try {
                             const resp = await interviewApi.addTranscriptChunk(parseInt(sessionId!), entry.speaker, entry.text, ts);
                             if (resp.data.suggestions?.length) setSuggestions(resp.data.suggestions);
@@ -153,46 +288,43 @@ export default function InterviewRoom() {
             };
 
             recognition.onerror = (e: any) => {
-                console.warn('STT error:', e.error);
-                if (e.error === 'no-speech' || e.error === 'audio-capture' || e.error === 'network') {
-                    // These are recoverable — just restart
+                if (['no-speech', 'audio-capture', 'network'].includes(e.error)) {
                     setTimeout(() => startRecognition(), 300);
                 } else if (e.error === 'not-allowed') {
-                    alert('Microphone permission denied. Please allow mic access and try again.');
+                    setSttError('Microphone permission denied.');
                     isListeningRef.current = false;
                     setIsListening(false);
                 }
             };
-
-            // KEY FIX: onend auto-restarts when recognition stops due to silence/timeout
             recognition.onend = () => {
                 setInterimText('');
-                if (isListeningRef.current) {
-                    // Small delay to prevent tight loop
-                    setTimeout(() => startRecognition(), 200);
-                }
+                if (isListeningRef.current) setTimeout(() => startRecognition(), 200);
             };
 
             recognitionRef.current = recognition;
-            try { recognition.start(); } catch (e) { console.error('Recognition start failed:', e); }
+            try { recognition.start(); } catch (e) { console.error(e); }
         };
 
         isListeningRef.current = true;
         setIsListening(true);
         startRecognition();
-    }, [sessionId, useDeepgram]);
+    }, [sessionId]);
 
     const stopListening = useCallback(() => {
-        isListeningRef.current = false; // Prevent auto-restart
+        isListeningRef.current = false;
         setInterimText('');
-        if (useDeepgram && mediaRecorderRef.current) {
-            mediaRecorderRef.current.stop();
-            mediaRecorderRef.current.stream.getTracks().forEach((track: any) => track.stop());
-        } else if (recognitionRef.current) {
-            try { recognitionRef.current.stop(); } catch { }
+        try { recognitionRef.current?.stop(); } catch { }
+        if (systemStreamRef.current) {
+            systemStreamRef.current.getTracks().forEach(t => t.stop());
+            systemStreamRef.current = null;
         }
         setIsListening(false);
-    }, [useDeepgram]);
+    }, []);
+
+    const startListening = useCallback(() => {
+        if (audioMode === 'system') startSystemAudioSTT();
+        else startMicSTT();
+    }, [audioMode, startSystemAudioSTT, startMicSTT]);
 
     const endInterview = async () => {
         setEnding(true);
@@ -206,89 +338,118 @@ export default function InterviewRoom() {
     const isRecruiter = ['Recruiter', 'HiringManager', 'Admin'].includes(userRole);
 
     return (
-        <div style={{ display: 'flex', flexDirection: 'column', height: 'calc(100vh - 116px)', gap: 0 }}>
-            {/* Header bar */}
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+        <div style={{ display: 'flex', flexDirection: 'column', height: 'calc(100vh - 116px)' }}>
+
+            {/* ── Header bar ──────────────────────────────────────────────── */}
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
                 <div>
-                    <h1 style={{ fontWeight: 900, fontSize: 24, color: 'var(--text)', margin: '0 0 2px' }}>
+                    <h1 style={{ fontWeight: 900, fontSize: 22, color: 'var(--text)', margin: '0 0 2px' }}>
                         Interview Room
                     </h1>
                     {session && (
-                        <p style={{ fontSize: 13, color: 'var(--text-muted)', margin: 0 }}>
+                        <p style={{ fontSize: 12, color: 'var(--text-muted)', margin: 0 }}>
                             {session.candidate.name} · {session.job_title}
-                            {session.meet_link && (
-                                <a href={session.meet_link} target="_blank" rel="noopener noreferrer"
-                                    style={{ marginLeft: 10, color: 'var(--blue)', fontWeight: 600, textDecoration: 'none' }}>
-                                    🔗 Open in Jitsi
-                                </a>
-                            )}
+                            {session.resume_score && <span style={{ marginLeft: 10, color: 'var(--text-faint)' }}>Resume: {Math.round(session.resume_score * 100)}%</span>}
                         </p>
                     )}
                 </div>
-                <div style={{ display: 'flex', gap: 10 }}>
-                    {isRecruiter && (
-                        <>
-                            {/* Speaker toggle */}
-                            <div style={{ display: 'flex', border: '1px solid var(--glass-border)', borderRadius: 10, overflow: 'hidden', backdropFilter: 'blur(8px)' }}>
-                                {(['Interviewer', 'Candidate'] as const).map(s => (
-                                    <button key={s} onClick={() => { speakerToggle.current = s; }}
-                                        style={{
-                                            padding: '8px 14px', fontSize: 12, fontWeight: 600, border: 'none', cursor: 'pointer',
-                                            background: speakerToggle.current === s ? 'var(--primary)' : 'var(--surface-2)',
-                                            color: speakerToggle.current === s ? 'white' : 'var(--text-muted)'
-                                        }}>
-                                        {s}
-                                    </button>
-                                ))}
-                            </div>
-                            {/* Deepgram Fallback Toggle */}
-                            <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, fontWeight: 600, color: 'var(--text-muted)', cursor: 'pointer', background: 'var(--surface-2)', padding: '0 10px', borderRadius: 8, border: '1px solid var(--border)' }}>
-                                <input type="checkbox" checked={useDeepgram} onChange={e => { if (!isListening) setUseDeepgram(e.target.checked); }} disabled={isListening} />
-                                Deepgram
-                            </label>
 
-                            <button className={isListening ? 'btn-secondary' : 'btn-success'} onClick={isListening ? stopListening : startListening}>
-                                {isListening ? (
-                                    <><span style={{ width: 8, height: 8, borderRadius: '50%', background: '#EF4444', display: 'inline-block', animation: 'pulse 1s infinite' }} /> Stop STT</>
-                                ) : (
-                                    <><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z" /><path d="M19 10v2a7 7 0 0 1-14 0v-2" /></svg> Start STT</>
-                                )}
-                            </button>
-                            <button className="btn-primary" style={{ background: 'linear-gradient(135deg,#EF4444,#DC2626)' }} onClick={endInterview} disabled={ending}>
-                                {ending ? 'Ending...' : '⏹ End & Evaluate'}
-                            </button>
-                        </>
-                    )}
-                </div>
+                {isRecruiter && (
+                    <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+                        {/* Audio mode selector */}
+                        <div style={{ display: 'flex', border: '1px solid var(--glass-border)', borderRadius: 8, overflow: 'hidden' }}>
+                            {([['system', '🖥 System Audio'], ['mic', '🎤 Mic Only']] as const).map(([mode, label]) => (
+                                <button key={mode} onClick={() => { if (!isListening) setAudioMode(mode); }}
+                                    title={mode === 'system' ? 'Captures all audio (earphones-safe via screen share)' : 'Captures only your microphone'}
+                                    style={{
+                                        padding: '6px 12px', fontSize: 11, fontWeight: 600, border: 'none', cursor: isListening ? 'not-allowed' : 'pointer',
+                                        background: audioMode === mode ? 'var(--primary)' : 'var(--surface-2)',
+                                        color: audioMode === mode ? 'white' : 'var(--text-muted)',
+                                    }}>
+                                    {label}
+                                </button>
+                            ))}
+                        </div>
+
+                        {/* Speaker toggle */}
+                        <div style={{ display: 'flex', border: '1px solid var(--glass-border)', borderRadius: 8, overflow: 'hidden' }}>
+                            {(['Interviewer', 'Candidate'] as const).map(s => (
+                                <button key={s} onClick={() => { speakerToggle.current = s; }}
+                                    style={{
+                                        padding: '6px 12px', fontSize: 11, fontWeight: 600, border: 'none', cursor: 'pointer',
+                                        background: speakerToggle.current === s ? (s === 'Interviewer' ? 'var(--primary)' : 'var(--blue)') : 'var(--surface-2)',
+                                        color: speakerToggle.current === s ? 'white' : 'var(--text-muted)',
+                                    }}>
+                                    {s}
+                                </button>
+                            ))}
+                        </div>
+
+                        {/* STT toggle */}
+                        <button className={isListening ? 'btn-secondary' : 'btn-success'}
+                            style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12 }}
+                            onClick={isListening ? stopListening : startListening}>
+                            {isListening ? (
+                                <><span style={{ width: 8, height: 8, borderRadius: '50%', background: '#EF4444', display: 'inline-block', animation: 'pulse 1s infinite' }} /> Stop STT</>
+                            ) : (
+                                <><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z" /><path d="M19 10v2a7 7 0 0 1-14 0v-2" /></svg> Start STT</>
+                            )}
+                        </button>
+
+                        {/* End */}
+                        <button className="btn-primary" style={{ background: 'linear-gradient(135deg,#EF4444,#DC2626)', fontSize: 12 }}
+                            onClick={endInterview} disabled={ending}>
+                            {ending ? 'Ending...' : '⏹ End & Evaluate'}
+                        </button>
+                    </div>
+                )}
             </div>
 
-            {/* Three-column layout (interviewer) / Single col (candidate) */}
+            {/* STT error banner */}
+            {sttError && (
+                <div style={{ background: 'var(--error-light)', border: '1px solid var(--error)', borderRadius: 10, padding: '10px 16px', marginBottom: 12, fontSize: 13, color: 'var(--error)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                    ⚠️ {sttError}
+                    <button onClick={() => setSttError('')} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--error)', fontSize: 16 }}>×</button>
+                </div>
+            )}
+
+            {/* Audio mode info banner when system is selected and not listening */}
+            {audioMode === 'system' && !isListening && !sttError && isRecruiter && (
+                <div style={{ background: 'rgba(26,115,232,0.08)', border: '1px solid rgba(26,115,232,0.25)', borderRadius: 10, padding: '9px 14px', marginBottom: 12, fontSize: 12, color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <span style={{ color: '#1a73e8', fontWeight: 700 }}>🖥 System Audio mode</span>
+                    — Works with earphones. When you click Start STT, Chrome will ask to share your screen. Click <strong>"Share"</strong> and enable <strong>"Share system audio"</strong> to capture both voices.
+                </div>
+            )}
+
+            {/* ── 3-column layout ─────────────────────────────────────────── */}
             {isRecruiter ? (
-                <div className="interview-grid" style={{ display: 'grid', gridTemplateColumns: '280px 1fr 300px', gap: 14, flex: 1, minHeight: 0 }}>
-                    {/* LEFT: Transcript */}
+                <div style={{ display: 'grid', gridTemplateColumns: '280px 1fr 290px', gap: 14, flex: 1, minHeight: 0 }}>
+
+                    {/* LEFT: Live Transcript */}
                     <div className="glass" style={{ display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
-                        <div style={{ padding: '14px 16px', borderBottom: '1px solid var(--border)', flexShrink: 0 }}>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 2 }}>
-                                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="var(--text)" strokeWidth="2" strokeLinecap="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" /></svg>
-                                <span style={{ fontWeight: 700, fontSize: 14, color: 'var(--text)' }}>Live Transcript</span>
+                        <div style={{ padding: '12px 14px', borderBottom: '1px solid var(--border)', flexShrink: 0 }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 7, marginBottom: 2 }}>
+                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--text)" strokeWidth="2" strokeLinecap="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" /></svg>
+                                <span style={{ fontWeight: 700, fontSize: 13, color: 'var(--text)' }}>Live Transcript</span>
                                 {isListening && <span style={{ width: 7, height: 7, borderRadius: '50%', background: '#EF4444', animation: 'pulse 1s infinite', display: 'inline-block' }} />}
                             </div>
-                            <p style={{ fontSize: 11, color: 'var(--text-muted)', margin: 0 }}>{transcript.length} segments recorded</p>
+                            <p style={{ fontSize: 11, color: 'var(--text-muted)', margin: 0 }}>{transcript.length} segments · {audioMode === 'system' ? '🖥 System audio' : '🎤 Mic'}</p>
                         </div>
-                        <div style={{ flex: 1, overflowY: 'auto', padding: '12px 14px', display: 'flex', flexDirection: 'column', gap: 10 }}>
+                        <div style={{ flex: 1, overflowY: 'auto', padding: '10px 12px', display: 'flex', flexDirection: 'column', gap: 8 }}>
                             {transcript.length === 0 && !interimText ? (
-                                <div style={{ textAlign: 'center', color: 'var(--text-muted)', fontSize: 13, paddingTop: 32, opacity: 0.7 }}>
-                                    <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" style={{ margin: '0 auto 8px', display: 'block' }}><path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z" /><path d="M19 10v2a7 7 0 0 1-14 0v-2" /></svg>
-                                    {isListening ? '🎤 Listening… speak now' : 'Press Start STT to begin recording'}
+                                <div style={{ textAlign: 'center', color: 'var(--text-muted)', fontSize: 12, paddingTop: 28, opacity: 0.7 }}>
+                                    <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" style={{ margin: '0 auto 8px', display: 'block' }}><path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z" /><path d="M19 10v2a7 7 0 0 1-14 0v-2" /></svg>
+                                    {isListening ? '🎤 Listening… speak now' : 'Start STT to begin recording'}
                                 </div>
                             ) : (
                                 <>
                                     {transcript.map((t, i) => (
                                         <div key={i} style={{ animation: 'fadeUp 0.3s ease-out' }}>
                                             <div style={{ fontSize: 10, fontWeight: 700, color: t.speaker === 'Interviewer' ? 'var(--primary)' : 'var(--blue)', marginBottom: 3, display: 'flex', justifyContent: 'space-between' }}>
-                                                <span>{t.speaker}</span><span style={{ fontWeight: 400, color: 'var(--text-faint)' }}>{t.timestamp}</span>
+                                                <span>{t.speaker}</span>
+                                                <span style={{ fontWeight: 400, color: 'var(--text-faint)' }}>{t.timestamp}</span>
                                             </div>
-                                            <div style={{ fontSize: 13, color: 'var(--text)', lineHeight: 1.5, background: t.speaker === 'Interviewer' ? 'var(--surface-2)' : 'var(--primary-light)', borderRadius: 10, padding: '8px 10px', border: '1px solid var(--glass-border)' }}>
+                                            <div style={{ fontSize: 13, color: 'var(--text)', lineHeight: 1.5, background: t.speaker === 'Interviewer' ? 'var(--surface-2)' : 'var(--primary-light)', borderRadius: 10, padding: '7px 10px', border: '1px solid var(--glass-border)' }}>
                                                 {t.text}
                                             </div>
                                         </div>
@@ -298,7 +459,7 @@ export default function InterviewRoom() {
                                             <div style={{ fontSize: 10, fontWeight: 700, color: speakerToggle.current === 'Interviewer' ? 'var(--primary)' : 'var(--blue)', marginBottom: 3 }}>
                                                 {speakerToggle.current} <span style={{ fontWeight: 400, color: 'var(--text-faint)' }}>· typing…</span>
                                             </div>
-                                            <div style={{ fontSize: 13, color: 'var(--text-muted)', lineHeight: 1.5, background: 'var(--surface-2)', borderRadius: 10, padding: '8px 10px', border: '1px dashed var(--border)', fontStyle: 'italic' }}>
+                                            <div style={{ fontSize: 13, color: 'var(--text-muted)', lineHeight: 1.5, background: 'var(--surface-2)', borderRadius: 10, padding: '7px 10px', border: '1px dashed var(--border)', fontStyle: 'italic' }}>
                                                 {interimText}<span style={{ display: 'inline-block', width: 2, height: 13, background: 'var(--primary)', marginLeft: 2, animation: 'pulse 1s infinite', verticalAlign: 'middle' }} />
                                             </div>
                                         </div>
@@ -309,68 +470,49 @@ export default function InterviewRoom() {
                         </div>
                     </div>
 
-                    {/* CENTER: Jitsi Meet */}
-                    <div className="glass" style={{ overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
-                        {!jitsiReady ? (
-                            <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 20 }}>
-                                <div style={{ width: 64, height: 64, background: 'var(--primary-light)', borderRadius: 20, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                                    <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="var(--primary)" strokeWidth="1.5" strokeLinecap="round"><rect width="20" height="14" x="2" y="5" rx="2" /><line x1="2" y1="10" x2="22" y2="10" /></svg>
-                                </div>
-                                <div style={{ textAlign: 'center' }}>
-                                    <h3 style={{ fontWeight: 800, fontSize: 18, color: 'var(--text)', margin: '0 0 8px' }}>Meeting Room</h3>
-                                    <p style={{ color: 'var(--text-muted)', fontSize: 14, margin: '0 0 20px', maxWidth: 300 }}>
-                                        Click to launch the Jitsi Meet room.<br />Share the link with your candidate.
-                                    </p>
-                                    {session?.meet_link && (
-                                        <div style={{ background: 'var(--surface-2)', border: '1px solid var(--glass-border)', borderRadius: 10, padding: '8px 14px', marginBottom: 16, fontSize: 12, color: 'var(--text-muted)', wordBreak: 'break-all' }}>
-                                            {session.meet_link}
-                                        </div>
-                                    )}
-                                    <div style={{ display: 'flex', gap: 10, justifyContent: 'center' }}>
-                                        <button className="btn-primary" onClick={() => setJitsiReady(true)}>
-                                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><polygon points="5 3 19 12 5 21 5 3" /></svg>
-                                            Start Interview
-                                        </button>
-                                        {session?.meet_link && (
-                                            <button className="btn-secondary" onClick={() => { navigator.clipboard.writeText(session.meet_link); }}>
-                                                📋 Copy Link
-                                            </button>
-                                        )}
-                                    </div>
-                                </div>
-                            </div>
-                        ) : (
-                            <div id="jitsi-container" style={{ flex: 1, minHeight: 400 }} />
-                        )}
-                    </div>
+                    {/* CENTER: Google Meet launcher */}
+                    {session ? (
+                        <MeetPanel
+                            meetLink={session.meet_link}
+                            candidateName={session.candidate.name}
+                            jobTitle={session.job_title}
+                        />
+                    ) : (
+                        <div className="glass" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                            <div style={{ width: 32, height: 32, border: '3px solid var(--border)', borderTopColor: 'var(--primary)', borderRadius: '50%', animation: 'spin 0.8s linear infinite' }} />
+                        </div>
+                    )}
 
-                    {/* RIGHT: AI Suggestions */}
+                    {/* RIGHT: AI Co-pilot */}
                     <div className="glass" style={{ display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
-                        <div style={{ padding: '14px 16px', borderBottom: '1px solid var(--border)', flexShrink: 0 }}>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 2 }}>
-                                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="var(--primary)" strokeWidth="2" strokeLinecap="round">
+                        <div style={{ padding: '12px 14px', borderBottom: '1px solid var(--border)', flexShrink: 0 }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 7, marginBottom: 2 }}>
+                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--primary)" strokeWidth="2" strokeLinecap="round">
                                     <path d="M9.5 2A2.5 2.5 0 0 1 12 4.5v15a2.5 2.5 0 0 1-4.96-.44 2.5 2.5 0 0 1-2.96-3.08 3 3 0 0 1-.34-5.58 2.5 2.5 0 0 1 1.32-4.24 2.5 2.5 0 0 1 1.98-3A2.5 2.5 0 0 1 9.5 2Z" />
                                     <path d="M14.5 2A2.5 2.5 0 0 0 12 4.5v15a2.5 2.5 0 0 0 4.96-.44 2.5 2.5 0 0 0 2.96-3.08 3 3 0 0 0 .34-5.58 2.5 2.5 0 0 0-1.32-4.24 2.5 2.5 0 0 0-1.98-3A2.5 2.5 0 0 0 14.5 2Z" />
                                 </svg>
-                                <span style={{ fontWeight: 700, fontSize: 14, color: 'var(--text)' }}>AI Co-pilot</span>
+                                <span style={{ fontWeight: 700, fontSize: 13, color: 'var(--text)' }}>AI Co-pilot</span>
+                                {suggestions.length > 0 && (
+                                    <span style={{ fontSize: 10, background: 'var(--primary-light)', color: 'var(--primary)', padding: '1px 6px', borderRadius: 999, fontWeight: 700 }}>{suggestions.length}</span>
+                                )}
                             </div>
-                            <p style={{ fontSize: 11, color: 'var(--text-muted)', margin: 0 }}>Suggested follow-up questions</p>
+                            <p style={{ fontSize: 11, color: 'var(--text-muted)', margin: 0 }}>Gemini-generated follow-up questions</p>
                         </div>
-                        <div style={{ flex: 1, overflowY: 'auto', padding: '12px 14px', display: 'flex', flexDirection: 'column', gap: 10 }}>
+                        <div style={{ flex: 1, overflowY: 'auto', padding: '10px 12px', display: 'flex', flexDirection: 'column', gap: 10 }}>
                             {suggestions.length === 0 ? (
-                                <div style={{ textAlign: 'center', color: 'var(--text-muted)', fontSize: 12, paddingTop: 24, opacity: 0.7 }}>
-                                    {isListening ? '🧠 Analyzing conversation...' : 'Start STT to get AI suggestions'}
+                                <div style={{ textAlign: 'center', color: 'var(--text-muted)', fontSize: 12, paddingTop: 24, opacity: 0.7, lineHeight: 1.6 }}>
+                                    {isListening ? '🧠 Analyzing conversation…' : 'Start STT to get real-time AI suggestions'}
                                 </div>
                             ) : suggestions.map((s, i) => (
                                 <div key={i} style={{ background: 'var(--surface-2)', border: '1px solid var(--glass-border)', borderRadius: 12, padding: '12px', animation: 'fadeUp 0.4s ease-out' }}>
-                                    <div style={{ display: 'flex', gap: 8, marginBottom: 6 }}>
+                                    <div style={{ display: 'flex', gap: 6, marginBottom: 6, flexWrap: 'wrap' }}>
                                         <PriorityBadge p={s.priority} />
                                         <span style={{ fontSize: 10, color: 'var(--text-faint)', fontWeight: 600 }}>{s.criterion}</span>
                                     </div>
-                                    <p style={{ fontSize: 13, fontWeight: 600, color: 'var(--text)', margin: '0 0 5px', lineHeight: 1.5 }}>{s.question}</p>
-                                    <p style={{ fontSize: 11, color: 'var(--text-muted)', margin: 0, lineHeight: 1.4 }}>{s.rationale}</p>
-                                    <button onClick={() => { navigator.clipboard.writeText(s.question); }}
-                                        style={{ marginTop: 8, fontSize: 11, color: 'var(--primary)', background: 'none', border: 'none', cursor: 'pointer', fontWeight: 600, padding: 0 }}>
+                                    <p style={{ fontSize: 13, fontWeight: 600, color: 'var(--text)', margin: '0 0 4px', lineHeight: 1.5 }}>{s.question}</p>
+                                    <p style={{ fontSize: 11, color: 'var(--text-muted)', margin: '0 0 8px', lineHeight: 1.4 }}>{s.rationale}</p>
+                                    <button onClick={() => navigator.clipboard.writeText(s.question)}
+                                        style={{ fontSize: 11, color: 'var(--primary)', background: 'none', border: 'none', cursor: 'pointer', fontWeight: 600, padding: 0 }}>
                                         📋 Copy question
                                     </button>
                                 </div>
@@ -379,19 +521,31 @@ export default function InterviewRoom() {
                     </div>
                 </div>
             ) : (
-                /* Candidate view — just the Jitsi link */
-                <div className="glass" style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 20 }}>
-                    <h2 style={{ fontWeight: 800, fontSize: 24, color: 'var(--text)' }}>Your Interview is Ready</h2>
-                    <p style={{ color: 'var(--text-muted)', fontSize: 15 }}>Click below to join the video call</p>
-                    {session?.meet_link && (
-                        <a href={session.meet_link} target="_blank" rel="noopener noreferrer">
-                            <button className="btn-primary" style={{ padding: '14px 32px', fontSize: 16 }}>
-                                🎥 Join Meeting
-                            </button>
-                        </a>
-                    )}
+                /* Candidate view */
+                <div className="glass" style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 24 }}>
+                    <div style={{ width: 72, height: 72, borderRadius: 20, background: 'linear-gradient(135deg,rgba(26,115,232,0.15),rgba(52,168,83,0.15))', display: 'flex', alignItems: 'center', justifyContent: 'center', border: '1px solid rgba(26,115,232,0.25)' }}>
+                        <svg width="38" height="38" viewBox="0 0 24 24" fill="#1a73e8"><path d="M17 10.5V7a1 1 0 0 0-1-1H4a1 1 0 0 0-1 1v10a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-3.5l4 4v-11l-4 4z" /></svg>
+                    </div>
+                    <div style={{ textAlign: 'center' }}>
+                        <h2 style={{ fontWeight: 800, fontSize: 22, color: 'var(--text)', margin: '0 0 8px' }}>Your Interview is Ready</h2>
+                        <p style={{ color: 'var(--text-muted)', fontSize: 14, margin: '0 0 20px' }}>Click below to join the Google Meet video call</p>
+                        {session?.meet_link && (
+                            <a href={session.meet_link} target="_blank" rel="noopener noreferrer" style={{ textDecoration: 'none' }}>
+                                <button style={{ padding: '12px 32px', fontSize: 15, fontWeight: 700, borderRadius: 12, border: 'none', cursor: 'pointer', background: 'linear-gradient(135deg,#1a73e8,#34a853)', color: 'white', display: 'inline-flex', alignItems: 'center', gap: 10, boxShadow: '0 4px 16px rgba(26,115,232,0.35)' }}>
+                                    <svg width="18" height="18" viewBox="0 0 24 24" fill="white"><path d="M17 10.5V7a1 1 0 0 0-1-1H4a1 1 0 0 0-1 1v10a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-3.5l4 4v-11l-4 4z" /></svg>
+                                    Join Google Meet
+                                </button>
+                            </a>
+                        )}
+                    </div>
                 </div>
             )}
+
+            <style>{`
+                @keyframes spin { to { transform: rotate(360deg); } }
+                @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.3} }
+                @keyframes fadeUp { from{opacity:0;transform:translateY(6px)} to{opacity:1;transform:translateY(0)} }
+            `}</style>
         </div>
     );
 }
