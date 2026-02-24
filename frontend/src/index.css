@@ -1,7 +1,5 @@
+@import 'tailwindcss';
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
 
 @layer base {
   :root {
@@ -35,18 +33,18 @@
   }
 
   .dark {
-    --bg: #0D0B1E;
-    --bg-gradient: linear-gradient(135deg, #12103A 0%, #1A0D2E 50%, #0A1628 100%);
-    --surface: rgba(30, 25, 60, 0.8);
-    --surface-solid: #1E193C;
-    --surface-2: rgba(255, 255, 255, 0.05);
-    --glass-border: rgba(255, 255, 255, 0.08);
-    --glass-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
-    --primary: #9B6Fee;
-    --primary-light: rgba(155, 111, 238, 0.15);
+    --bg: #0F1117;
+    --bg-gradient: linear-gradient(135deg, #0F1117 0%, #161929 50%, #111827 100%);
+    --surface: rgba(22, 27, 46, 0.92);
+    --surface-solid: #1C2035;
+    --surface-2: rgba(255, 255, 255, 0.06);
+    --glass-border: rgba(255, 255, 255, 0.10);
+    --glass-shadow: 0 8px 32px rgba(0, 0, 0, 0.45);
+    --primary: #A78BFA;
+    --primary-light: rgba(167, 139, 250, 0.15);
     --primary-hover: #7C3AED;
-    --success: #22C55E;
-    --success-light: rgba(34, 197, 94, 0.15);
+    --success: #34D399;
+    --success-light: rgba(52, 211, 153, 0.15);
     --error: #F87171;
     --error-light: rgba(248, 113, 113, 0.15);
     --warning: #FBBF24;
@@ -55,12 +53,12 @@
     --blue-light: rgba(96, 165, 250, 0.15);
     --orange: #FB923C;
     --orange-light: rgba(251, 146, 60, 0.15);
-    --text: #FFFFFF;
-    --text-2: #F3F4F6;
-    --text-muted: #C4B5FD;
-    --text-faint: #9CA3AF;
-    --border: rgba(155, 111, 238, 0.2);
-    --border-2: rgba(255, 255, 255, 0.1);
+    --text: #F1F5F9;
+    --text-2: #E2E8F0;
+    --text-muted: #CBD5E1;
+    --text-faint: #94A3B8;
+    --border: rgba(167, 139, 250, 0.18);
+    --border-2: rgba(255, 255, 255, 0.08);
   }
 
   * {
@@ -405,4 +403,203 @@
 
 .animate-fade-up {
   animation: fadeUp 0.4s ease-out both;
+}
+
+/* ─── RESPONSIVE LAYOUT ──────────────────────────────────────────────────────── */
+
+/* Hamburger menu button (mobile only) */
+.hamburger-btn {
+  display: none;
+  align-items: center;
+  justify-content: center;
+  width: 38px;
+  height: 38px;
+  border-radius: 10px;
+  border: 1px solid var(--glass-border);
+  background: var(--surface-2);
+  cursor: pointer;
+  backdrop-filter: blur(8px);
+  color: var(--text);
+  flex-shrink: 0;
+}
+
+/* Mobile sidebar overlay */
+.sidebar-overlay {
+  display: none;
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.4);
+  backdrop-filter: blur(2px);
+  z-index: 49;
+}
+
+/* ── Tables → cards on mobile ── */
+.resp-table-container {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+/* ── TABLET (≤1024px) ─────────────────────────────────────────────────── */
+@media (max-width: 1024px) {
+  :root {
+    --sidebar-w: 200px;
+  }
+
+  /* Interview room: collapse to 2 cols */
+  .interview-grid {
+    grid-template-columns: 240px 1fr !important;
+  }
+
+  .interview-grid> :last-child {
+    display: none;
+  }
+}
+
+/* ── MOBILE (≤768px) ──────────────────────────────────────────────────── */
+@media (max-width: 768px) {
+  :root {
+    --sidebar-w: 0px;
+  }
+
+  /* Show hamburger */
+  .hamburger-btn {
+    display: flex;
+  }
+
+  /* Sidebar: off-canvas by default */
+  aside.app-sidebar {
+    transform: translateX(-100%);
+    transition: transform 0.28s cubic-bezier(0.4, 0, 0.2, 1);
+    z-index: 200 !important;
+    width: 240px !important;
+  }
+
+  aside.app-sidebar.open {
+    transform: translateX(0);
+    box-shadow: 8px 0 40px rgba(0, 0, 0, 0.3);
+  }
+
+  /* Show overlay when sidebar open */
+  .sidebar-overlay.open {
+    display: block;
+  }
+
+  /* Main content takes full width */
+  .app-main {
+    margin-left: 0 !important;
+  }
+
+  /* Header shows hamburger on left */
+  .app-header {
+    justify-content: space-between !important;
+    padding: 0 16px !important;
+  }
+
+  /* Main padding reduced */
+  .app-content {
+    padding: 16px !important;
+  }
+
+  /* Tables become horizontally scrollable */
+  table {
+    min-width: 600px;
+  }
+
+  .glass,
+  .card {
+    border-radius: 14px;
+  }
+
+  /* Dashboard: single column stat cards */
+  .dash-stats-grid {
+    grid-template-columns: 1fr 1fr !important;
+  }
+
+  .dash-overview-grid {
+    grid-template-columns: 1fr !important;
+  }
+
+  .dash-cards-grid {
+    grid-template-columns: 1fr !important;
+  }
+
+  /* Jobs: single column */
+  .jobs-grid {
+    grid-template-columns: 1fr !important;
+  }
+
+  /* Job pipeline: stack */
+  .pipeline-grid {
+    grid-template-columns: 1fr !important;
+  }
+
+  /* Interview room: fully stack */
+  .interview-grid {
+    grid-template-columns: 1fr !important;
+    grid-template-rows: auto auto !important;
+  }
+
+  .interview-grid> :nth-child(3) {
+    display: none;
+    /* Hide AI panel on mobile */
+  }
+
+  /* Final evaluation: stack */
+  .eval-grid {
+    grid-template-columns: 1fr !important;
+  }
+
+  /* Candidate report */
+  .report-grid {
+    grid-template-columns: 1fr !important;
+  }
+
+  /* Buttons stack on small screens */
+  .actions-row {
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
+  /* Headings smaller */
+  h1 {
+    font-size: 22px !important;
+  }
+
+  h2 {
+    font-size: 18px !important;
+  }
+
+  /* Stats strip in various pages: 2 per row */
+  .stats-strip {
+    flex-wrap: wrap;
+  }
+
+  .stats-strip>* {
+    flex: 1 1 calc(50% - 8px);
+    min-width: 0;
+  }
+
+  /* Criteria modal */
+  .criteria-modal-body {
+    width: calc(100vw - 32px) !important;
+    max-height: 90vh !important;
+  }
+}
+
+/* ── SMALL MOBILE (≤480px) ────────────────────────────────────────────── */
+@media (max-width: 480px) {
+  .dash-stats-grid {
+    grid-template-columns: 1fr !important;
+  }
+
+  .stats-strip>* {
+    flex: 1 1 100%;
+  }
+
+  .btn-primary,
+  .btn-secondary,
+  .btn-success {
+    font-size: 13px;
+    padding: 9px 14px;
+  }
 }

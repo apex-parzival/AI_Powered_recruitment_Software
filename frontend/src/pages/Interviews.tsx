@@ -1,23 +1,21 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { api, interviewApi } from '../api';
+import { api } from '../api';
 
-const STATUS_STYLE: Record<string, { bg: string; color: string; label: string }> = {
-    completed: { bg: 'rgba(34,197,94,0.15)', color: '#22C55E', label: '✅ Completed' },
-    in_progress: { bg: 'rgba(59,130,246,0.15)', color: '#3B82F6', label: '🔴 Live' },
-    scheduled: { bg: 'rgba(245,158,11,0.15)', color: '#F59E0B', label: '📅 Scheduled' },
+const VERDICT_STYLE: Record<string, { bg: string; color: string }> = {
+    ACCEPT: { bg: 'rgba(34,197,94,0.15)', color: '#22C55E' },
+    HOLD: { bg: 'rgba(245,158,11,0.15)', color: '#F59E0B' },
+    REJECT: { bg: 'rgba(239,68,68,0.15)', color: '#EF4444' },
 };
 
 export default function Interviews() {
     const [sessions, setSessions] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
-    const [starting, setStarting] = useState<number | null>(null);
     const navigate = useNavigate();
 
     useEffect(() => {
         const load = async () => {
             try {
-                // Load all candidates that have interview sessions
                 const r = await api.get('/candidates?limit=200');
                 const withSession = (r.data as any[]).filter(c => c.interview_session_id);
                 setSessions(withSession);
@@ -26,22 +24,6 @@ export default function Interviews() {
         };
         load();
     }, []);
-
-    const startNew = async (appId: number) => {
-        setStarting(appId);
-        try {
-            const r = await interviewApi.startSession(appId);
-            navigate(`/interview-room/${r.data.id}`);
-        } catch (e: any) {
-            alert(e?.response?.data?.detail || 'Could not start interview');
-        } finally { setStarting(null); }
-    };
-
-    const VERDICT_STYLE: Record<string, { bg: string; color: string }> = {
-        ACCEPT: { bg: 'rgba(34,197,94,0.15)', color: '#22C55E' },
-        HOLD: { bg: 'rgba(245,158,11,0.15)', color: '#F59E0B' },
-        REJECT: { bg: 'rgba(239,68,68,0.15)', color: '#EF4444' },
-    };
 
     const completed = sessions.filter(s => !s.final_verdict).length;
     const evaluated = sessions.filter(s => s.final_verdict).length;

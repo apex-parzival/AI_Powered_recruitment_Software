@@ -92,7 +92,7 @@ export default function Dashboard() {
             </div>
 
             {/* Stats grid */}
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', gap: 16, marginBottom: 28 }}>
+            <div className="dash-stats-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', gap: 16, marginBottom: 28 }}>
                 <StatCard icon="💼" label="Active Jobs" value={stats?.total_jobs ?? 0} sub="Across all departments" color="#7C3AED" />
                 <StatCard icon="👥" label="Total Candidates" value={stats?.total_candidates ?? 0} sub={`${stats?.recommended ?? 0} recommended`} color="#3B82F6" />
                 <StatCard icon="📄" label="Applications" value={stats?.total_applications ?? 0} sub={`${stats?.completed_applications ?? 0} fully scored`} color="#22C55E" />
@@ -102,7 +102,7 @@ export default function Dashboard() {
             </div>
 
             {/* Two-column bottom */}
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20 }}>
+            <div className="dash-overview-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20 }}>
                 {/* Final Verdict Distribution */}
                 <div className="glass" style={{ padding: '24px 28px' }}>
                     <h3 style={{ fontWeight: 800, fontSize: 16, color: 'var(--text)', margin: '0 0 20px' }}>

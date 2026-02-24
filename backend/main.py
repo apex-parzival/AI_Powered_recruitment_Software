@@ -39,8 +39,46 @@ UPLOAD_DIR = "./data/uploads"
 os.makedirs(UPLOAD_DIR, exist_ok=True)
 
 # ─────────────────────────────────────────────────────────────────────────────
-# ROOT
+# AUTH – Google OAuth token verification
 # ─────────────────────────────────────────────────────────────────────────────
+class GoogleAuthRequest(BaseModel):
+    token: str
+
+@app.post("/auth/google")
+async def google_auth(req: GoogleAuthRequest):
+    """Verify a Google ID token and return user profile for Recruiter login."""
+    import base64, httpx
+
+    def _decode_payload(token: str) -> dict:
+        try:
+            padded = token.split(".")[1] + "=="
+            return json.loads(base64.urlsafe_b64decode(padded))
+        except Exception:
+            return {}
+
+    try:
+        async with httpx.AsyncClient(timeout=10) as client:
+            r = await client.get(
+                "https://oauth2.googleapis.com/tokeninfo",
+                params={"id_token": req.token}
+            )
+            if r.status_code != 200:
+                raise HTTPException(401, "Invalid Google token")
+            info = r.json()
+    except httpx.RequestError:
+        # Dev fallback: decode without verification
+        info = _decode_payload(req.token)
+        if not info.get("email"):
+            raise HTTPException(503, "Google token verification failed – no network access")
+
+    return {
+        "email": info.get("email", ""),
+        "name": info.get("name", info.get("email", "").split("@")[0]),
+        "picture": info.get("picture", ""),
+        "role": "Recruiter",
+    }
+
+
 @app.get("/")
 def read_root():
     gemini_status = "✅ Gemini Flash active" if resume_parser.GEMINI_AVAILABLE else "⚠️  Gemini not configured (set GEMINI_API_KEY in .env)"

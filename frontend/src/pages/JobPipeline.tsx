@@ -85,7 +85,7 @@ export default function JobPipeline() {
     };
 
     const startInterview = async (appId: number) => {
-        try { const r = await interviewApi.startSession(appId); navigate(`/interview/${r.data.id}`); }
+        try { const r = await interviewApi.startSession(appId); navigate(`/interview-room/${r.data.id}`); }
         catch (e) { console.error(e); }
     };
 
@@ -142,7 +142,7 @@ export default function JobPipeline() {
                 </div>
             </div>
 
-            <div style={{ display: 'grid', gridTemplateColumns: '300px 1fr', gap: 20 }}>
+            <div className="pipeline-grid" style={{ display: 'grid', gridTemplateColumns: '300px 1fr', gap: 20 }}>
                 {/* Upload Panel */}
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
                     <div className="card" style={{ padding: 20 }}>

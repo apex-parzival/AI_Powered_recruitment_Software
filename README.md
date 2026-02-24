@@ -1,13 +1,15 @@
-# TalentAI — AI-Powered Recruitment Software
+# TalentAI — AI-Powered Recruitment Platform
 
 <div align="center">
 
 ![TalentAI](https://img.shields.io/badge/TalentAI-AI%20Recruitment-7C3AED?style=for-the-badge&logo=sparkles)
 ![FastAPI](https://img.shields.io/badge/FastAPI-0.100+-009688?style=for-the-badge&logo=fastapi)
 ![React](https://img.shields.io/badge/React-18+-61DAFB?style=for-the-badge&logo=react)
-![Gemini](https://img.shields.io/badge/Google-Gemini%20Flash-4285F4?style=for-the-badge&logo=google)
+![Gemini](https://img.shields.io/badge/Google-Gemini%20Flash%202.0-4285F4?style=for-the-badge&logo=google)
+![GoogleAuth](https://img.shields.io/badge/Google-OAuth%202.0-EA4335?style=for-the-badge&logo=google)
+![Responsive](https://img.shields.io/badge/Responsive-Mobile%20Ready-22C55E?style=for-the-badge&logo=css3)
 
-*End-to-end AI hiring platform: resume scoring, live interviews, and ACCEPT/HOLD/REJECT verdicts — all powered by Gemini Flash 2.0*
+*End-to-end AI hiring platform: resume scoring, live interviews with real-time transcription, and AI-generated ACCEPT/HOLD/REJECT verdicts — all powered by Gemini Flash 2.0. Featuring Google OAuth for secure recruiter login, lazy-loaded pages, and full dark-mode support.*
 
 </div>
 
@@ -15,33 +17,39 @@
 
 ## ✨ Features
 
-### 📄 AI Resume Preprocessing & Scoring
+### 🔐 Authentication
+- **Google Sign-In** for Recruiters — one-click OAuth 2.0 login via `@react-oauth/google`
+- **Employee login** — email + password form
+- **Auth Guard** — all routes protected; unauthenticated users redirected to `/login`
+- Google profile picture shown in sidebar avatar
+
+### 📄 AI Resume Screening
 - **Structured extraction** via Gemini Flash 2.0 — name, email, skills, experience, education, companies
-- **Enhanced AI Criteria Generation** — Auto-extracts a precise 7-field JSON schema (Location, Salary, Tech Skills, etc.) from job descriptions
-- **Criteria Editor Modal** — Manually add custom requirements and set precise Job-level default assessment weights (Resume/Interview/Tech/Rating)
-- **Multi-dimensional scoring** against structured job criteria (0–100 per criterion) with evidence quotes
-- **Bulk upload** — 1000+ PDFs via 64KB streaming chunks + 16-worker thread pool, batched DB commits of 50
-- **Recommendation flag** — auto-tags top-percentile candidates for interview
+- **AI Criteria Generation** — Auto-extracts a 7-field JSON schema from job descriptions
+- **Criteria Editor Modal** — Add custom requirements and set Job-level weights (Resume/Interview/Tech/Rating)
+- **Multi-dimensional scoring** (0–100 per criterion) with evidence quotes
+- **Bulk upload** — 1000+ PDFs via 64KB streaming chunks + 16-worker thread pool
 - **JD Parsing** — Upload Job Description as PDF/Docx to auto-extract text during Job Creation
 
-### 🎥 Live Interview System & Technical Assessments
-- **Jitsi Meet** integration — free, embeddable video conferencing with no API key required
-- **Web Speech API** — real-time browser-side speech-to-text; toggle Interviewer/Candidate speaker labels
-- **Deepgram STT Fallback** — Optional high-accuracy audio chunk processing if Web Speech is unavailable
-- **AI Co-pilot** — Gemini generates 3–4 smart follow-up questions every 3 utterances with HIGH/MEDIUM priority
-- **Post-interview evaluation** — Gemini cross-references spoken answers vs resume claims, scores consistency
-- **Technical Assessments** — AI-generated timed coding/scenario quizzes per candidate, evaluated automatically
+### 🎥 Live Interview System
+- **Jitsi Meet** integration — free, embeddable video conferencing (no API key required)
+- **Real-time Speech-to-Text** — Browser Web Speech API with auto-restart, live interim text, Interviewer/Candidate speaker labels
+- **Deepgram Fallback** — High-accuracy audio chunk processing if Web Speech API unavailable
+- **AI Co-pilot** — Gemini generates smart follow-up questions every 3 utterances (HIGH/MEDIUM priority)
+- **Post-interview evaluation** — Gemini cross-references spoken answers vs resume claims
+- **Technical Assessments** — AI-generated timed coding/scenario quizzes, auto-evaluated
 
 ### 🏆 Final Assessment Engine
-- **Dynamic Composite Formula**: Hirers use interactive sliders to define precise 0-100% weights for Resume Analysis, Interview Score, Tech Assessment, and Recruiter Rating.
+- **Dynamic composite formula** — interactive sliders for Resume/Interview/Tech/Recruiter weighting
 - **5-level recruiter rating**: Strong Hire → Strong No Hire
-- **ACCEPT / HOLD / REJECT** verdict with gradient card, narrative, strengths, and concerns
-- Full verdict history stored with per-criterion breakdowns
+- **ACCEPT / HOLD / REJECT** verdict with Gemini-written narrative, strengths, and concerns
 
-### 🎨 Glassmorphism UI
-- Dark / light mode with CSS custom properties
-- Full navigation: Dashboard · Jobs · Candidates · Interviews · Evaluations · Profile
-- Responsive glassmorphism design with Inter font, animated transitions
+### 🎨 Responsive Glassmorphism UI
+- **Dark mode** with improved palette — clear text contrast in sidebar and all nav elements
+- **Mobile-first layout** — collapsible off-canvas sidebar with hamburger toggle
+- Horizontal-scrollable data tables on small screens
+- Lazy-loaded pages via `React.lazy` + `Suspense` for fast initial load
+- Inter font, animated transitions, glass cards
 
 ---
 
@@ -49,33 +57,36 @@
 
 ```
 web/
-├── backend/          # FastAPI + SQLAlchemy + SQLite
-│   ├── main.py       # All API endpoints (jobs, resumes, interviews, assessments)
-│   ├── models.py     # SQLAlchemy ORM models
-│   ├── resume_parser.py   # Gemini Flash resume extraction + scoring
-│   ├── interview_service.py # Jitsi room creation, AI follow-ups, evaluation
-│   ├── ai_service.py       # Ollama fallback + criteria generation
-│   ├── audio_service.py    # STT mock helpers
-│   ├── seed.py       # Demo data: 50 jobs, 120 candidates, 150 applications, 80 interviews
-│   ├── database.py   # SQLAlchemy engine + session
-│   ├── schemas.py    # Pydantic request/response models
-│   └── .env          # GEMINI_API_KEY goes here
+├── backend/                    # FastAPI + SQLAlchemy + SQLite
+│   ├── main.py                 # All API endpoints + /auth/google
+│   ├── models.py               # SQLAlchemy ORM models
+│   ├── schemas.py              # Pydantic request/response models
+│   ├── resume_parser.py        # Gemini Flash resume extraction + scoring
+│   ├── interview_service.py    # Jitsi room creation, AI follow-ups, evaluation
+│   ├── ai_service.py           # Criteria generation via Gemini
+│   ├── audio_service.py        # Deepgram STT helpers
+│   ├── seed.py                 # Demo data: 50 jobs, 120 candidates, 150 applications
+│   └── database.py             # SQLAlchemy engine + session
 │
-├── frontend/         # React 18 + TypeScript + Vite + TailwindCSS
-│   └── src/
-│       ├── pages/
-│       │   ├── Dashboard.tsx       # Live stats + verdict distribution
-│       │   ├── Jobs.tsx            # 50 job cards with AI criteria
-│       │   ├── JobPipeline.tsx     # Bulk resume upload + candidate table
-│       │   ├── Candidates.tsx      # 120 candidates with real scores
-│       │   ├── Interviews.tsx      # Session table with scores + verdicts
-│       │   ├── InterviewRoom.tsx   # 3-panel: STT + Jitsi + AI co-pilot
-│       │   ├── InterviewReport.tsx # 2-tab: transcript + Gemini eval
-│       │   ├── FinalEvaluation.tsx # ACCEPT/HOLD/REJECT verdict card
-│       │   └── ...
-│       └── api.ts    # Axios wrapper for all API calls
-│
-└── runner.py         # Starts both backend and frontend together
+└── frontend/                   # React 18 + TypeScript + Vite
+    └── src/
+        ├── components/
+        │   └── Layout.tsx      # Responsive sidebar, Google avatar, hamburger, dark mode
+        ├── pages/
+        │   ├── Login.tsx           # Google Sign-In (Recruiter) + email/password (Employee)
+        │   ├── Dashboard.tsx       # Stats, verdict distribution, recent activity
+        │   ├── Jobs.tsx            # Job board with search & filter
+        │   ├── JobPipeline.tsx     # Per-job candidate pipeline + bulk upload
+        │   ├── Candidates.tsx      # Cross-job candidate tracker
+        │   ├── Interviews.tsx      # Interview session list
+        │   ├── InterviewRoom.tsx   # Jitsi embed + live STT + AI co-pilot
+        │   ├── InterviewReport.tsx # Full post-interview transcript & scores
+        │   ├── FinalEvaluation.tsx # Composite scoring with weight sliders
+        │   ├── Evaluations.tsx     # All final verdicts across candidates
+        │   └── Profile.tsx         # User settings
+        ├── App.tsx             # Routes + AuthGuard + GoogleOAuthProvider + lazy loading
+        ├── api.ts              # Axios client + all API calls + error interceptor
+        └── index.css           # Design tokens, glassmorphism, dark mode, responsive
 ```
 
 ---
@@ -83,132 +94,140 @@ web/
 ## 🚀 Quick Start
 
 ### Prerequisites
-- **Python 3.11+** with `pip`
-- **Node.js 18+** with `npm`
-- **Google AI API key** (free at https://aistudio.google.com/app/apikey)
+- Python 3.10+
+- Node.js 18+
+- Google Gemini API key (free tier works)
+- Google OAuth Client ID (for recruiter login)
 
-### 1. Clone & Install
+### 1. Backend
 
-```bash
-git clone https://github.com/apex-parzival/AI_Powered_recruitment_Software.git
-cd AI_Powered_recruitment_Software
+```powershell
+cd web/backend
 
-# Backend
-cd backend
+# Create and activate venv
 python -m venv venv
-venv\Scripts\activate        # Windows
-# source venv/bin/activate   # macOS/Linux
+.\venv\Scripts\Activate.ps1        # Windows PowerShell
+# source venv/bin/activate         # Mac/Linux
+
 pip install -r requirements.txt
 
-# Frontend
-cd ../frontend
+# Create .env
+echo GEMINI_API_KEY=your_key_here > .env
+
+# Start server (use venv python directly — avoids PATH issues)
+.\venv\Scripts\python.exe -m uvicorn main:app --reload --port 8000
+```
+
+### 2. Seed Demo Data (optional but recommended)
+
+```powershell
+.\venv\Scripts\python.exe seed.py
+# Creates: 50 jobs · 120 candidates · 150 applications · 80 interviews · 55 evaluations
+```
+
+### 3. Frontend
+
+```powershell
+cd web/frontend
 npm install
+
+# Create .env with your Google OAuth Client ID
+# VITE_GOOGLE_CLIENT_ID=your_client_id.apps.googleusercontent.com
+# VITE_API_URL=http://localhost:8000
+
+npm run dev
+# Open http://localhost:5173
 ```
 
-### 2. Configure API Key
+### 4. Login
 
-```bash
-# backend/.env
-GEMINI_API_KEY=YOUR_GOOGLE_AI_API_KEY_HERE
-```
-> Without the key, the system falls back to mock scores — everything still works.
-
-### 3. Seed Demo Data (optional)
-
-```bash
-cd backend
-venv\Scripts\python seed.py
-```
-
-This creates:
-| Entity | Count |
-|--------|-------|
-| Jobs | 50 (12 departments) |
-| Candidates | 120 |
-| Applications | 150 |
-| Interview Sessions | 80 |
-| Final Evaluations | 55 |
-
-### 4. Run Everything
-
-```bash
-# From project root — starts backend + frontend together
-python runner.py
-```
-
-Or separately:
-```bash
-# Terminal 1 — Backend
-cd backend && venv\Scripts\python -m uvicorn main:app --reload --port 8000
-
-# Terminal 2 — Frontend
-cd frontend && npm run dev
-```
-
-- **Frontend**: http://localhost:5173
-- **Backend API**: http://localhost:8000
-- **API Docs**: http://localhost:8000/docs
+| Role | Method |
+|------|--------|
+| **Recruiter** | Click **Sign in with Google** |
+| **Employee** | Enter any email + password |
 
 ---
 
-## 📡 Key API Endpoints
+## 🔑 Google OAuth Setup
+
+1. Go to [console.cloud.google.com](https://console.cloud.google.com)
+2. **APIs & Services → Credentials → + Create Credentials → OAuth 2.0 Client ID**
+3. Type: **Web application**
+4. Authorized JavaScript origins: `http://localhost:5173`
+5. Copy Client ID → paste into `frontend/.env` as `VITE_GOOGLE_CLIENT_ID`
+6. Restart `npm run dev`
+
+---
+
+## 📡 API Reference
 
 | Method | Endpoint | Description |
 |--------|----------|-------------|
-| `GET` | `/stats` | Platform-wide counts and metrics |
-| `GET` | `/jobs` | All jobs with application counts and criteria |
-| `POST` | `/jobs` | Create a new job requisition |
-| `POST` | `/jobs/{id}/criteria/generate` | AI-generate scoring criteria |
-| `POST` | `/jobs/{id}/resumes/upload` | Bulk PDF upload (1000+) |
-| `GET` | `/candidates` | All candidates enriched with scores + verdicts |
-| `POST` | `/interviews/start` | Create Jitsi meeting + session |
-| `POST` | `/interviews/{id}/transcript` | Save STT chunk + get AI questions |
-| `POST` | `/interviews/{id}/end` | End session + trigger Gemini eval |
+| `POST` | `/auth/google` | Verify Google ID token, return user profile |
+| `GET` | `/stats` | Dashboard statistics |
+| `GET/POST` | `/jobs` | List / create jobs |
+| `POST` | `/jobs/{id}/resumes/upload` | Bulk resume upload |
+| `GET` | `/jobs/{id}/applications` | Candidate pipeline for a job |
+| `GET` | `/candidates` | All candidates with scores |
+| `POST` | `/interviews/start` | Create Jitsi room + interview session |
+| `GET` | `/interviews/{id}` | Get session with transcript |
+| `POST` | `/interviews/{id}/transcript` | Add transcript chunk, get AI suggestions |
+| `POST` | `/interviews/{id}/end` | End session, trigger evaluation |
 | `GET` | `/interviews/{id}/report` | Full post-interview report |
-| `POST` | `/assessments/technical/generate` | Generate candidate technical assessment |
-| `POST` | `/assessments/technical/{token}/submit` | Submit and score technical assessment |
-| `POST` | `/assessments/final` | Generate ACCEPT/HOLD/REJECT verdict |
+| `POST` | `/assessments/technical/generate` | Generate technical quiz |
+| `POST` | `/assessments/final` | Submit final weighted verdict |
 
 ---
 
-## 🔒 Privacy & PII Handling
+## 🗄️ Database Models
 
-- Resume PDFs stored **locally** only — never sent to third parties except Gemini for analysis
-- Only extracted text (no raw files) is sent to Gemini API
-- All data stays in the local SQLite database (`backend/recruitment_app.db`)
-- The `.env` file and DB file are excluded from version control via `.gitignore`
+| Model | Key Fields |
+|-------|-----------|
+| `Job` | title, description, department, criteria_versions |
+| `CriteriaVersion` | criteria_config (JSON), is_active, version |
+| `Candidate` | name, email, resume_path, structured_data |
+| `Application` | resume_score, score_breakdown, interview_evaluation, final_assessment, status |
+| `InterviewSession` | meet_link, jitsi_room, transcript_data, ai_suggestions, status |
+| `TechnicalAssessment` | questions (JSON), answers, score, access_token |
+| `FinalEvaluation` | resume_score, interview_score, technical_score, subjective_score, final_score, verdict |
+
+---
+
+## 📱 Responsive Design
+
+| Breakpoint | Layout |
+|-----------|--------|
+| `> 1024px` | Full 3-column desktop layout, full sidebar |
+| `768px – 1024px` | Tablet: sidebar narrows, interview room loses AI panel |
+| `< 768px` | Mobile: off-canvas sidebar with hamburger toggle, single-column grids, scrollable tables |
+| `< 480px` | Small mobile: single-column stat cards, compact buttons |
+
+---
+
+## 🔧 Configuration
+
+| Variable | Location | Description |
+|----------|----------|-------------|
+| `GEMINI_API_KEY` | `backend/.env` | Required for all AI features |
+| `VITE_GOOGLE_CLIENT_ID` | `frontend/.env` | Required for Recruiter Google Sign-In |
+| `VITE_API_URL` | `frontend/.env` | Backend URL (default: `http://localhost:8000`) |
+| `JITSI_BASE` | hardcoded | `https://meet.jit.si` |
+| `UPLOAD_DIR` | `main.py` | Resume PDF storage path |
 
 ---
 
 ## 🛠️ Tech Stack
 
-| Layer | Technology |
-|-------|-----------|
-| Frontend | React 18, TypeScript, Vite, TailwindCSS |
-| Backend | FastAPI, SQLAlchemy, SQLite |
-| AI | Google Gemini Flash 2.0 (`gemini-2.0-flash`), Ollama (Local LLM fallback) |
-| Video | Jitsi Meet (free, no API key) |
-| STT | Web Speech API (Chrome), Deepgram SDK |
-| Document Parsing | PyMuPDF (fitz), python-docx |
+**Backend:** FastAPI · SQLAlchemy · SQLite · Google Generative AI (Gemini Flash 2.0) · PyMuPDF · python-docx · httpx
+
+**Frontend:** React 18 · TypeScript · Vite · React Router v6 · Axios · `@react-oauth/google` · Web Speech API · Jitsi Meet External API
+
+**AI:** Google Gemini Flash 2.0 — resume extraction, multi-criterion scoring, interview follow-up generation, post-interview evaluation, final assessment narrative
 
 ---
 
-## 📋 Interview Flow
+<div align="center">
 
-```
-Upload Resumes → Gemini Flash scores each PDF against criteria
-                    ↓
-Start Interview → Jitsi Meet room created → /interview-room/{id}
-                    ↓
-     Speak → Web STT → transcript saved → Gemini suggests follow-up Qs
-                    ↓
-End Interview → Gemini evaluates transcript vs resume → /interview-report/{id}
-                    ↓
-Final Assessment → Recruiter rates → ACCEPT / HOLD / REJECT
-```
+Built with ❤️ for modern AI-powered hiring
 
----
-
-## 📜 License
-
-MIT — free to use, modify, and distribute.
+</div>

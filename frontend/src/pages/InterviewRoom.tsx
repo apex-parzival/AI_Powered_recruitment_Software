@@ -32,6 +32,7 @@ export default function InterviewRoom() {
     const [transcript, setTranscript] = useState<TranscriptEntry[]>([]);
     const [suggestions, setSuggestions] = useState<Suggestion[]>([]);
     const [isListening, setIsListening] = useState(false);
+    const [interimText, setInterimText] = useState('');
     const [ending, setEnding] = useState(false);
     const [jitsiReady, setJitsiReady] = useState(false);
 
@@ -39,6 +40,7 @@ export default function InterviewRoom() {
     const recognitionRef = useRef<any>(null);
     const mediaRecorderRef = useRef<any>(null);
     const speakerToggle = useRef<'Interviewer' | 'Candidate'>('Interviewer');
+    const isListeningRef = useRef(false);
     const [useDeepgram, setUseDeepgram] = useState(false);
 
     // Load session data
@@ -120,40 +122,74 @@ export default function InterviewRoom() {
             return;
         }
 
-        const recognition = new SpeechRecognition();
-        recognition.continuous = true;
-        recognition.interimResults = true;
-        recognition.lang = 'en-US';
+        const startRecognition = () => {
+            if (!isListeningRef.current) return; // Don't restart if user explicitly stopped
+            const recognition = new SpeechRecognition();
+            recognition.continuous = true;
+            recognition.interimResults = true;
+            recognition.lang = 'en-US';
+            recognition.maxAlternatives = 1;
 
-        recognition.onresult = async (event: any) => {
-            for (let i = event.resultIndex; i < event.results.length; i++) {
-                if (event.results[i].isFinal) {
-                    const text = event.results[i][0].transcript.trim();
-                    if (!text || text.length < 3) continue;
-                    const ts = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
-                    const entry: TranscriptEntry = { speaker: speakerToggle.current, text, timestamp: ts };
-                    setTranscript(prev => [...prev, entry]);
-
-                    // Send to backend
-                    try {
-                        const resp = await interviewApi.addTranscriptChunk(parseInt(sessionId!), entry.speaker, entry.text, ts);
-                        if (resp.data.suggestions?.length) setSuggestions(resp.data.suggestions);
-                    } catch { }
+            recognition.onresult = async (event: any) => {
+                let interim = '';
+                for (let i = event.resultIndex; i < event.results.length; i++) {
+                    if (event.results[i].isFinal) {
+                        const text = event.results[i][0].transcript.trim();
+                        if (!text || text.length < 2) continue;
+                        setInterimText('');
+                        const ts = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+                        const entry: TranscriptEntry = { speaker: speakerToggle.current, text, timestamp: ts };
+                        setTranscript(prev => [...prev, entry]);
+                        // Send to backend
+                        try {
+                            const resp = await interviewApi.addTranscriptChunk(parseInt(sessionId!), entry.speaker, entry.text, ts);
+                            if (resp.data.suggestions?.length) setSuggestions(resp.data.suggestions);
+                        } catch { }
+                    } else {
+                        interim += event.results[i][0].transcript;
+                    }
                 }
-            }
+                if (interim) setInterimText(interim);
+            };
+
+            recognition.onerror = (e: any) => {
+                console.warn('STT error:', e.error);
+                if (e.error === 'no-speech' || e.error === 'audio-capture' || e.error === 'network') {
+                    // These are recoverable — just restart
+                    setTimeout(() => startRecognition(), 300);
+                } else if (e.error === 'not-allowed') {
+                    alert('Microphone permission denied. Please allow mic access and try again.');
+                    isListeningRef.current = false;
+                    setIsListening(false);
+                }
+            };
+
+            // KEY FIX: onend auto-restarts when recognition stops due to silence/timeout
+            recognition.onend = () => {
+                setInterimText('');
+                if (isListeningRef.current) {
+                    // Small delay to prevent tight loop
+                    setTimeout(() => startRecognition(), 200);
+                }
+            };
+
+            recognitionRef.current = recognition;
+            try { recognition.start(); } catch (e) { console.error('Recognition start failed:', e); }
         };
-        recognition.onerror = (e: any) => console.error('STT error:', e.error);
-        recognitionRef.current = recognition;
-        recognition.start();
+
+        isListeningRef.current = true;
         setIsListening(true);
+        startRecognition();
     }, [sessionId, useDeepgram]);
 
     const stopListening = useCallback(() => {
+        isListeningRef.current = false; // Prevent auto-restart
+        setInterimText('');
         if (useDeepgram && mediaRecorderRef.current) {
             mediaRecorderRef.current.stop();
             mediaRecorderRef.current.stream.getTracks().forEach((track: any) => track.stop());
         } else if (recognitionRef.current) {
-            recognitionRef.current.stop();
+            try { recognitionRef.current.stop(); } catch { }
         }
         setIsListening(false);
     }, [useDeepgram]);
@@ -228,7 +264,7 @@ export default function InterviewRoom() {
 
             {/* Three-column layout (interviewer) / Single col (candidate) */}
             {isRecruiter ? (
-                <div style={{ display: 'grid', gridTemplateColumns: '280px 1fr 300px', gap: 14, flex: 1, minHeight: 0 }}>
+                <div className="interview-grid" style={{ display: 'grid', gridTemplateColumns: '280px 1fr 300px', gap: 14, flex: 1, minHeight: 0 }}>
                     {/* LEFT: Transcript */}
                     <div className="glass" style={{ display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
                         <div style={{ padding: '14px 16px', borderBottom: '1px solid var(--border)', flexShrink: 0 }}>
@@ -240,21 +276,35 @@ export default function InterviewRoom() {
                             <p style={{ fontSize: 11, color: 'var(--text-muted)', margin: 0 }}>{transcript.length} segments recorded</p>
                         </div>
                         <div style={{ flex: 1, overflowY: 'auto', padding: '12px 14px', display: 'flex', flexDirection: 'column', gap: 10 }}>
-                            {transcript.length === 0 ? (
+                            {transcript.length === 0 && !interimText ? (
                                 <div style={{ textAlign: 'center', color: 'var(--text-muted)', fontSize: 13, paddingTop: 32, opacity: 0.7 }}>
                                     <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" style={{ margin: '0 auto 8px', display: 'block' }}><path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z" /><path d="M19 10v2a7 7 0 0 1-14 0v-2" /></svg>
-                                    Press Start STT to begin recording
+                                    {isListening ? '🎤 Listening… speak now' : 'Press Start STT to begin recording'}
                                 </div>
-                            ) : transcript.map((t, i) => (
-                                <div key={i} style={{ animation: 'fadeUp 0.3s ease-out' }}>
-                                    <div style={{ fontSize: 10, fontWeight: 700, color: t.speaker === 'Interviewer' ? 'var(--primary)' : 'var(--blue)', marginBottom: 3, display: 'flex', justifyContent: 'space-between' }}>
-                                        <span>{t.speaker}</span><span style={{ fontWeight: 400, color: 'var(--text-faint)' }}>{t.timestamp}</span>
-                                    </div>
-                                    <div style={{ fontSize: 13, color: 'var(--text)', lineHeight: 1.5, background: t.speaker === 'Interviewer' ? 'var(--surface-2)' : 'var(--primary-light)', borderRadius: 10, padding: '8px 10px', border: '1px solid var(--glass-border)' }}>
-                                        {t.text}
-                                    </div>
-                                </div>
-                            ))}
+                            ) : (
+                                <>
+                                    {transcript.map((t, i) => (
+                                        <div key={i} style={{ animation: 'fadeUp 0.3s ease-out' }}>
+                                            <div style={{ fontSize: 10, fontWeight: 700, color: t.speaker === 'Interviewer' ? 'var(--primary)' : 'var(--blue)', marginBottom: 3, display: 'flex', justifyContent: 'space-between' }}>
+                                                <span>{t.speaker}</span><span style={{ fontWeight: 400, color: 'var(--text-faint)' }}>{t.timestamp}</span>
+                                            </div>
+                                            <div style={{ fontSize: 13, color: 'var(--text)', lineHeight: 1.5, background: t.speaker === 'Interviewer' ? 'var(--surface-2)' : 'var(--primary-light)', borderRadius: 10, padding: '8px 10px', border: '1px solid var(--glass-border)' }}>
+                                                {t.text}
+                                            </div>
+                                        </div>
+                                    ))}
+                                    {interimText && (
+                                        <div style={{ animation: 'fadeUp 0.15s ease-out' }}>
+                                            <div style={{ fontSize: 10, fontWeight: 700, color: speakerToggle.current === 'Interviewer' ? 'var(--primary)' : 'var(--blue)', marginBottom: 3 }}>
+                                                {speakerToggle.current} <span style={{ fontWeight: 400, color: 'var(--text-faint)' }}>· typing…</span>
+                                            </div>
+                                            <div style={{ fontSize: 13, color: 'var(--text-muted)', lineHeight: 1.5, background: 'var(--surface-2)', borderRadius: 10, padding: '8px 10px', border: '1px dashed var(--border)', fontStyle: 'italic' }}>
+                                                {interimText}<span style={{ display: 'inline-block', width: 2, height: 13, background: 'var(--primary)', marginLeft: 2, animation: 'pulse 1s infinite', verticalAlign: 'middle' }} />
+                                            </div>
+                                        </div>
+                                    )}
+                                </>
+                            )}
                             <div ref={transcriptEndRef} />
                         </div>
                     </div>
@@ -279,7 +329,7 @@ export default function InterviewRoom() {
                                     <div style={{ display: 'flex', gap: 10, justifyContent: 'center' }}>
                                         <button className="btn-primary" onClick={() => setJitsiReady(true)}>
                                             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><polygon points="5 3 19 12 5 21 5 3" /></svg>
-                                            Launch Meeting
+                                            Start Interview
                                         </button>
                                         {session?.meet_link && (
                                             <button className="btn-secondary" onClick={() => { navigator.clipboard.writeText(session.meet_link); }}>

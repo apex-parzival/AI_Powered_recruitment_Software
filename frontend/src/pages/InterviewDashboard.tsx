@@ -29,7 +29,6 @@ export default function InterviewDashboard() {
     const [transcript, setTranscript] = useState<TranscriptEntry[]>([]);
     const [suggestions, setSuggestions] = useState<{ text: string; priority: 'HIGH' | 'MEDIUM'; detail: string }[]>([]);
     const [chunkIndex, setChunkIndex] = useState(0);
-    const [activeTab, setActiveTab] = useState<'transcript' | 'suggestions'>('transcript');
     const [endLoading, setEndLoading] = useState(false);
     const transcriptRef = useRef<HTMLDivElement>(null);
 
@@ -38,17 +37,22 @@ export default function InterviewDashboard() {
     }, [transcript]);
 
     useEffect(() => {
-        let timer: NodeJS.Timeout;
+        let timer: ReturnType<typeof setInterval>;
         if (isRecording && sessionId) {
             timer = setInterval(async () => {
                 try {
-                    const res = await interviewApi.sendAudioChunk(parseInt(sessionId), chunkIndex, 'mock_audio_data');
-                    setTranscript(prev => [...prev, res.data.new_transcript]);
-                    if (res.data.ai_suggestions?.length) {
-                        const mapped = res.data.ai_suggestions.map((s: string, i: number) => ({
+                    const res = await interviewApi.addTranscriptChunk(
+                        parseInt(sessionId), 'Candidate',
+                        '[Mock STT] Responding to interviewer question...'
+                    );
+                    if (res.data.added) {
+                        setTranscript(prev => [...prev, { speaker: res.data.added.speaker, text: res.data.added.text, timestamp: res.data.added.timestamp }]);
+                    }
+                    if (res.data.suggestions?.length) {
+                        const mapped = res.data.suggestions.map((s: string, i: number) => ({
                             text: s,
                             priority: i % 2 === 0 ? 'HIGH' : 'MEDIUM' as 'HIGH' | 'MEDIUM',
-                            detail: 'Diving deeper into implementation details and real-world experience.'
+                            detail: 'Dive deeper into implementation details and real-world experience.'
                         }));
                         setSuggestions(mapped);
                     }

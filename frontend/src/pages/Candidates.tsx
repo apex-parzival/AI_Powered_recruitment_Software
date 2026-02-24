@@ -18,7 +18,7 @@ function Avatar({ name, idx }: { name: string; idx: number }) {
     );
 }
 
-function Score({ value, label }: { value: number | null; label?: string }) {
+function Score({ value }: { value: number | null }) {
     if (value == null) return <span style={{ color: 'var(--text-faint)', fontSize: 13 }}>—</span>;
     const pct = value <= 1 ? Math.round(value * 100) : Math.round(value);
     const color = pct >= 75 ? '#22C55E' : pct >= 55 ? '#3B82F6' : '#F59E0B';
@@ -70,6 +70,13 @@ export default function Candidates() {
         evaluated: candidates.filter(c => c.final_verdict).length,
     };
 
+    const filterOpts: [typeof filter, string][] = [
+        ['all', `All (${stats.total})`],
+        ['recommend', `⭐ Recommended (${stats.recommended})`],
+        ['interview', `🎥 Interviewed (${stats.interviewed})`],
+        ['evaluated', `📋 Evaluated (${stats.evaluated})`],
+    ];
+
     return (
         <div>
             {/* Header */}
@@ -84,20 +91,16 @@ export default function Candidates() {
 
             {/* Quick-filter pills */}
             <div style={{ display: 'flex', gap: 8, marginBottom: 20, flexWrap: 'wrap' }}>
-                {([
-                    ['all', `All (${stats.total})`],
-                    ['recommend', `⭐ Recommended (${stats.recommended})`],
-                    ['interview', `🎥 Interviewed (${stats.interviewed})`],
-                    ['evaluated', `📋 Evaluated (${stats.evaluated})`],
-                ] as const).map(([val, label]) => (
+                {filterOpts.map(([val, lbl]) => (
                     <button key={val} onClick={() => setFilter(val)}
                         style={{
-                            padding: '8px 16px', borderRadius: 999, fontSize: 13, fontWeight: 600, border: 'none', cursor: 'pointer', transition: 'all 0.15s',
+                            padding: '8px 16px', borderRadius: 999, fontSize: 13, fontWeight: 600, cursor: 'pointer', transition: 'all 0.15s',
+                            border: `1px solid ${filter === val ? 'var(--primary)' : 'var(--glass-border)'}`,
                             background: filter === val ? 'var(--primary)' : 'var(--surface-2)',
                             color: filter === val ? 'white' : 'var(--text-muted)',
-                            backdropFilter: 'blur(8px)', border: `1px solid ${filter === val ? 'var(--primary)' : 'var(--glass-border)'}` as any
+                            backdropFilter: 'blur(8px)',
                         }}>
-                        {label}
+                        {lbl}
                     </button>
                 ))}
                 <div style={{ marginLeft: 'auto', position: 'relative' }}>
@@ -158,9 +161,7 @@ export default function Candidates() {
                                             </div>
                                         </td>
                                         {/* Resume Score */}
-                                        <td style={{ padding: '14px 18px' }}>
-                                            <Score value={c.resume_score} />
-                                        </td>
+                                        <td style={{ padding: '14px 18px' }}><Score value={c.resume_score} /></td>
                                         {/* Interview Score */}
                                         <td style={{ padding: '14px 18px' }}>
                                             {c.interview_session_id ? (
