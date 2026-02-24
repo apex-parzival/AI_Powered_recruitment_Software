@@ -400,11 +400,17 @@ def get_session(session_id: int, db: Session = Depends(get_db)):
     if appl and appl.resume_structured_data:
         try: structured = json.loads(appl.resume_structured_data) if isinstance(appl.resume_structured_data, str) else appl.resume_structured_data
         except: pass
+    # Always compute a fresh Google Meet link from the session ID, ignoring
+    # any stale Jitsi URL that may be stored in the DB from older sessions.
+    from interview_service import _make_gmeet_code
+    gmeet_code = _make_gmeet_code(session.id)
+    gmeet_link = f"https://meet.google.com/{gmeet_code}"
+
     return {
         "id": session.id,
         "status": session.status,
-        "meet_link": session.meet_link,
-        "jitsi_room": session.jitsi_room,
+        "meet_link": gmeet_link,
+        "jitsi_room": gmeet_code,
         "transcript": session.transcript_data or [],
         "ai_suggestions": session.ai_suggestions or [],
         "candidate": {"name": cand.name if cand else "Candidate", "email": cand.email if cand else ""},
