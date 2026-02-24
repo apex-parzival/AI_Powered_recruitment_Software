@@ -400,11 +400,17 @@ def get_session(session_id: int, db: Session = Depends(get_db)):
     if appl and appl.resume_structured_data:
         try: structured = json.loads(appl.resume_structured_data) if isinstance(appl.resume_structured_data, str) else appl.resume_structured_data
         except: pass
-    # Always compute a fresh Google Meet link from the session ID, ignoring
-    # any stale Jitsi URL that may be stored in the DB from older sessions.
-    from interview_service import _make_gmeet_code
-    gmeet_code = _make_gmeet_code(session.id)
-    gmeet_link = f"https://meet.google.com/{gmeet_code}"
+
+    # Use saved Google Meet link if present, otherwise generate a placeholder Meet code
+    # (ignoring any stale Jitsi URLs that might be in the DB)
+    gmeet_link = session.meet_link
+    gmeet_code = getattr(session, "jitsi_room", "")
+    
+    if not gmeet_link or "jit.si" in gmeet_link:
+        from interview_service import _make_gmeet_code
+        gmeet_code = _make_gmeet_code(session.id)
+        gmeet_link = f"https://meet.google.com/{gmeet_code}"
+
 
     return {
         "id": session.id,
@@ -418,6 +424,20 @@ def get_session(session_id: int, db: Session = Depends(get_db)):
         "resume_score": appl.resume_score if appl else None,
         "resume_structured_data": structured,
     }
+
+class MeetLinkUpdate(BaseModel):
+    meet_link: str
+
+@app.patch("/interviews/{session_id}/meet-link")
+def update_meet_link(session_id: int, req: MeetLinkUpdate, db: Session = Depends(get_db)):
+    """Save the user-pasted Google Meet link to the session."""
+    session = db.query(models.InterviewSession).filter(models.InterviewSession.id == session_id).first()
+    if not session:
+        raise HTTPException(404, "Session not found")
+    session.meet_link = req.meet_link
+    db.commit()
+    return {"ok": True, "meet_link": req.meet_link}
+
 
 class TranscriptChunkRequest(BaseModel):
     speaker: str       # "Interviewer" or "Candidate"
