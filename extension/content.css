@@ -4,7 +4,7 @@
     position: fixed;
     top: 60px;
     right: 18px;
-    width: 340px;
+    width: 720px;
     height: 560px;
     z-index: 2147483647;
     font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
@@ -13,14 +13,15 @@
     flex-direction: column;
     border-radius: 18px;
     overflow: hidden;
-    box-shadow: 0 24px 64px rgba(0, 0, 0, 0.55), inset 0 1px 0 rgba(255, 255, 255, 0.08);
-    border: 1px solid rgba(255, 255, 255, 0.13);
-    background: rgba(10, 10, 22, 0.82);
-    backdrop-filter: blur(32px) saturate(200%);
-    -webkit-backdrop-filter: blur(32px) saturate(200%);
+    box-shadow: 0 32px 64px rgba(0, 0, 0, 0.6), inset 0 1px 0 rgba(255, 255, 255, 0.15);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    /* Stronger glassmorphism */
+    background: rgba(15, 15, 30, 0.45);
+    backdrop-filter: blur(24px) saturate(180%);
+    -webkit-backdrop-filter: blur(24px) saturate(180%);
     transition: opacity 0.2s, transform 0.2s;
     resize: both;
-    min-width: 280px;
+    min-width: 500px;
     min-height: 300px;
 }
 

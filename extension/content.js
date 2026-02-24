@@ -256,13 +256,6 @@ function updateFooter() {
     if (txt) txt.textContent = isListening ? `${audioMode === 'system' ? '🖥 System' : '🎤 Mic+AEC'} · ${transcript.length} segments · dedup active` : `Paused · ${transcript.length} segments`;
     if (dot) dot.style.display = isListening ? '' : 'none';
 }
-function switchTab(id) {
-    activeTab = id;
-    document.querySelectorAll('.tai-tab').forEach(t => t.classList.toggle('active', t.dataset.tab === id));
-    document.querySelectorAll('.tai-pane').forEach(p => p.classList.toggle('active', p.id === `talentai-${id}-pane`));
-    document.getElementById('talentai-speaker-row').style.display = id === 'transcript' ? 'flex' : 'none';
-    if (id === 'ai') document.querySelector('.tai-badge[data-tab="ai"]')?.classList.remove('new');
-}
 function setSpeaker(s) {
     speaker = s;
     document.querySelectorAll('.tai-speaker-btn').forEach(b => b.classList.toggle('active', b.dataset.sp === s));
@@ -297,26 +290,23 @@ function buildPanel() {
             <button onclick="document.getElementById('talentai-error').style.display='none'" style="background:none;border:none;cursor:pointer;color:#F87171;font-size:14px">×</button>
         </div>
 
-        <!-- Tabs -->
-        <div id="talentai-tabs">
-            <button class="tai-tab active" data-tab="transcript">📝 Transcript <span class="tai-badge" data-tab="transcript" style="display:none">0</span></button>
-            <button class="tai-tab" data-tab="ai">🧠 AI Suggestor <span class="tai-badge" data-tab="ai" style="display:none">0</span></button>
-        </div>
-
-        <!-- Speaker row -->
-        <div id="talentai-speaker-row">
-            <span style="font-size:9px;color:#334155;font-weight:700;letter-spacing:.08em;flex-shrink:0">SPEAKER</span>
-            <button class="tai-speaker-btn interviewer active" data-sp="Interviewer">👤 Interviewer</button>
-            <button class="tai-speaker-btn candidate" data-sp="Candidate">🧑 Candidate</button>
-        </div>
-
-        <!-- Content -->
-        <div id="talentai-content">
-            <div class="tai-pane active" id="talentai-transcript-pane">
-                <div class="tai-empty"><div class="tai-empty-icon">🎙</div>Enter session ID → click Start STT</div>
-            </div>
-            <div class="tai-pane" id="talentai-ai-pane">
+        <!-- Content (Side-by-side) -->
+        <div id="talentai-content" style="display:flex; flex-direction:row; height:100%;">
+            <!-- Left: AI -->
+            <div class="tai-pane active" id="talentai-ai-pane" style="flex:1; border-right:1px solid rgba(255,255,255,0.06); padding:10px 12px; display:flex; flex-direction:column; gap:8px;">
                 <div class="tai-empty"><div class="tai-empty-icon">🧠</div>Start STT to get AI suggestions</div>
+            </div>
+            
+            <!-- Right: Transcript -->
+            <div class="tai-pane active" id="talentai-transcript-container" style="flex:1; display:flex; flex-direction:column; padding:0;">
+                <div id="talentai-speaker-row" style="padding:6px 12px; border-bottom:1px solid rgba(255,255,255,0.05); display:flex; align-items:center; gap:7px; flex-shrink:0;">
+                    <span style="font-size:9px;color:#cbd5e1;font-weight:700;letter-spacing:.08em;flex-shrink:0">SPEAKER</span>
+                    <button class="tai-speaker-btn interviewer active" data-sp="Interviewer">👤 Interviewer</button>
+                    <button class="tai-speaker-btn candidate" data-sp="Candidate">🧑 Candidate</button>
+                </div>
+                <div id="talentai-transcript-pane" style="flex:1; overflow-y:auto; padding:10px 12px; display:flex; flex-direction:column; gap:8px;">
+                    <div class="tai-empty"><div class="tai-empty-icon">🎙</div>Enter session ID → click Start STT</div>
+                </div>
             </div>
         </div>
 
@@ -356,11 +346,6 @@ function buildPanel() {
     // STT button
     document.getElementById('talentai-stt-btn').addEventListener('click', () => {
         if (isListening) stopSTT(); else startSTT();
-    });
-
-    // Tabs
-    document.querySelectorAll('.tai-tab').forEach(tab => {
-        tab.addEventListener('click', () => switchTab(tab.dataset.tab));
     });
 
     // Speaker toggle
