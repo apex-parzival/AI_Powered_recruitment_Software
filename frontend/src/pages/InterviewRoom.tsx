@@ -25,12 +25,29 @@ function PriorityBadge({ p }: { p: string }) {
 }
 
 // ─── Google Meet Center Panel ─────────────────────────────────────────────────
-function MeetPanel({ meetLink, candidateName, jobTitle }: { meetLink: string; candidateName: string; jobTitle: string }) {
+function MeetPanel({ meetLink, candidateName, jobTitle, sessionId }: { meetLink: string; candidateName: string; jobTitle: string; sessionId: string }) {
     const [launched, setLaunched] = useState(false);
     const [copied, setCopied] = useState(false);
 
     const launch = () => {
-        window.open(meetLink, '_blank', 'noopener,noreferrer');
+        // 1. Open the floating companion popup (transcript + AI co-pilot)
+        const screenW = window.screen.width;
+        const screenH = window.screen.height;
+        const popW = 360, popH = Math.min(620, screenH - 60);
+        // Position companion on the right edge so it can float over Meet
+        const left = screenW - popW - 20;
+        const top = 40;
+        window.open(
+            `/companion/${sessionId}`,
+            `talentai-companion-${sessionId}`,
+            `popup,width=${popW},height=${popH},left=${left},top=${top},resizable=yes`
+        );
+
+        // 2. Navigate THIS tab to Google Meet
+        setTimeout(() => {
+            window.location.href = meetLink;
+        }, 300);
+
         setLaunched(true);
     };
 
@@ -476,6 +493,7 @@ export default function InterviewRoom() {
                             meetLink={session.meet_link}
                             candidateName={session.candidate.name}
                             jobTitle={session.job_title}
+                            sessionId={sessionId!}
                         />
                     ) : (
                         <div className="glass" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>

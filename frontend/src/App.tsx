@@ -16,6 +16,7 @@ const Evaluations = lazy(() => import('./pages/Evaluations'));
 const Interviews = lazy(() => import('./pages/Interviews'));
 const Profile = lazy(() => import('./pages/Profile'));
 const TechnicalAssessment = lazy(() => import('./pages/TechnicalAssessment'));
+const Companion = lazy(() => import('./pages/Companion'));
 
 // ─── Page loader spinner ──────────────────────────────────────────
 function PageLoader() {
@@ -51,9 +52,10 @@ function App() {
       <Router>
         <Suspense fallback={<PageLoader />}>
           <Routes>
-            {/* Public routes */}
+            {/* Public / standalone routes */}
             <Route path="/login" element={<Login />} />
             <Route path="/assessment/:token" element={<TechnicalAssessment />} />
+            <Route path="/companion/:sessionId" element={<Companion />} />
 
             {/* Protected routes */}
             <Route path="/" element={<AuthGuard><Layout /></AuthGuard>}>
